@@ -1,7 +1,7 @@
 {
 	"id": "smart-image-renamer",
 	"name": "Smart Image Renamer",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"minAppVersion": "0.15.0",
 	"description": "Automatically rename pasted images based on the active note's filename.",
 	"author": "Luca Trifilio",
