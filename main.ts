@@ -1,10 +1,145 @@
-import { Plugin, TFile, TFolder, MarkdownView, Notice } from "obsidian";
+import { Plugin, TFile, TFolder, MarkdownView, Notice, Menu, Editor, Modal, Setting } from "obsidian";
 
 export default class SmartImageRenamer extends Plugin {
 	async onload() {
 		this.registerEvent(
 			this.app.workspace.on("editor-paste", this.handlePaste.bind(this))
 		);
+
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", this.handleEditorMenu.bind(this))
+		);
+
+		// Context menu on rendered images - capture phase to run before Obsidian
+		this.registerDomEvent(document, "contextmenu", this.handleImageContextMenu.bind(this), true);
+	}
+
+	private handleImageContextMenu(evt: MouseEvent): void {
+		const target = evt.target as HTMLElement;
+		if (target.tagName !== "IMG") return;
+
+		const img = target as HTMLImageElement;
+		const src = img.getAttribute("src");
+		if (!src) return;
+
+		// Extract filename from src (handles both vault URLs and resource paths)
+		let imagePath = decodeURIComponent(src);
+
+		// Handle app://... URLs
+		if (imagePath.includes("app://")) {
+			const match = imagePath.match(/app:\/\/[^/]+\/(.+?)(\?|$)/);
+			if (match) imagePath = match[1];
+		}
+
+		// Get just the filename (remove query params if any)
+		let fileName = imagePath.split("/").pop();
+		if (!fileName) return;
+		fileName = fileName.split("?")[0];
+
+		const file = this.app.vault.getFiles().find(f => f.name === fileName);
+		if (!file || !this.isImageFile(file.extension)) return;
+
+		// Store file reference for menu
+		this.pendingImageFile = file;
+
+		// Show menu after a tiny delay to let Obsidian's menu appear first
+		setTimeout(() => {
+			this.pendingImageFile = undefined;
+		}, 100);
+	}
+
+	private pendingImageFile: TFile | undefined;
+
+	private isImageFile(ext: string): boolean {
+		return ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"].includes(ext.toLowerCase());
+	}
+
+	private async renameImageFile(file: TFile): Promise<void> {
+		new RenameImageModal(this.app, file, async (newName) => {
+			const sanitized = this.sanitizeFilename(newName);
+			if (!sanitized) {
+				new Notice("Invalid filename");
+				return;
+			}
+
+			const newPath = file.parent?.path
+				? `${file.parent.path}/${sanitized}.${file.extension}`
+				: `${sanitized}.${file.extension}`;
+
+			try {
+				await this.app.fileManager.renameFile(file, newPath);
+				new Notice(`Renamed to ${sanitized}.${file.extension}`);
+			} catch (error) {
+				new Notice(`Failed to rename: ${error}`);
+			}
+		}).open();
+	}
+
+	private handleEditorMenu(menu: Menu, editor: Editor, view: MarkdownView): void {
+		// Check if we have a pending image from DOM right-click
+		if (this.pendingImageFile) {
+			const file = this.pendingImageFile;
+			menu.addItem((item) => {
+				item.setTitle("Rename image")
+					.setIcon("pencil")
+					.onClick(() => this.renameImageFile(file));
+			});
+			return;
+		}
+
+		// Check if cursor is on a wikilink
+		const cursor = editor.getCursor();
+		const line = editor.getLine(cursor.line);
+		const imageLink = this.getImageLinkAtCursor(line, cursor.ch);
+
+		if (!imageLink) return;
+
+		menu.addItem((item) => {
+			item.setTitle("Rename image")
+				.setIcon("pencil")
+				.onClick(() => this.renameImage(imageLink, view));
+		});
+	}
+
+	private getImageLinkAtCursor(line: string, cursorPos: number): string | null {
+		const regex = /!\[\[([^\]]+\.(png|jpg|jpeg|gif|webp|bmp|svg))\]\]/gi;
+		let match;
+
+		while ((match = regex.exec(line)) !== null) {
+			const start = match.index;
+			const end = start + match[0].length;
+			if (cursorPos >= start && cursorPos <= end) {
+				return match[1];
+			}
+		}
+		return null;
+	}
+
+	private async renameImage(imageName: string, view: MarkdownView): Promise<void> {
+		const file = this.app.metadataCache.getFirstLinkpathDest(imageName, view.file?.path || "");
+		if (!file) {
+			new Notice(`Image not found: ${imageName}`);
+			return;
+		}
+
+		new RenameImageModal(this.app, file, async (newName) => {
+			const sanitized = this.sanitizeFilename(newName);
+			if (!sanitized) {
+				new Notice("Invalid filename");
+				return;
+			}
+
+			const newPath = file.parent?.path
+				? `${file.parent.path}/${sanitized}.${file.extension}`
+				: `${sanitized}.${file.extension}`;
+
+			try {
+				await this.app.fileManager.renameFile(file, newPath);
+				new Notice(`Renamed to ${sanitized}.${file.extension}`);
+			} catch (error) {
+				new Notice(`Failed to rename: ${error}`);
+			}
+		}).open();
 	}
 
 	private async handlePaste(
@@ -173,5 +308,68 @@ export default class SmartImageRenamer extends Plugin {
 
 	onunload() {
 		// Cleanup if needed
+	}
+}
+
+class RenameImageModal extends Modal {
+	private file: TFile;
+	private onSubmit: (newName: string) => void;
+	private inputEl: HTMLInputElement;
+
+	constructor(app: import("obsidian").App, file: TFile, onSubmit: (newName: string) => void) {
+		super(app);
+		this.file = file;
+		this.onSubmit = onSubmit;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.addClass("rename-image-modal");
+
+		contentEl.createEl("h3", { text: "Rename image" });
+		contentEl.createEl("p", {
+			text: `Current: ${this.file.basename}`,
+			cls: "rename-image-current"
+		});
+
+		this.inputEl = contentEl.createEl("input", {
+			type: "text",
+			value: this.file.basename,
+			cls: "rename-image-input"
+		});
+		this.inputEl.style.width = "100%";
+		this.inputEl.style.marginBottom = "1em";
+		this.inputEl.addEventListener("keydown", (e) => {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				this.submit();
+			}
+		});
+
+		new Setting(contentEl)
+			.addButton((btn) =>
+				btn.setButtonText("Rename")
+					.setCta()
+					.onClick(() => this.submit())
+			)
+			.addButton((btn) =>
+				btn.setButtonText("Cancel")
+					.onClick(() => this.close())
+			);
+
+		// Focus and select after render
+		setTimeout(() => this.inputEl.select(), 10);
+	}
+
+	private submit() {
+		const newName = this.inputEl.value.trim();
+		if (newName && newName !== this.file.basename) {
+			this.onSubmit(newName);
+		}
+		this.close();
+	}
+
+	onClose() {
+		this.contentEl.empty();
 	}
 }
