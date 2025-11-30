@@ -1,7 +1,29 @@
-import { Plugin, TFile, TFolder, MarkdownView, Notice, Menu, Editor, Modal, Setting } from "obsidian";
+import { Plugin, TFile, TFolder, MarkdownView, Notice, Menu, Editor, Modal, Setting, PluginSettingTab, App } from "obsidian";
+
+interface SmartImageRenamerSettings {
+	suffixMode: 'sequential' | 'timestamp';
+	timestampFormat: string;
+	sanitizationMode: 'normal' | 'aggressive';
+}
+
+const DEFAULT_SETTINGS: SmartImageRenamerSettings = {
+	suffixMode: 'sequential',
+	timestampFormat: 'YYYYMMDD-HHmmss',
+	sanitizationMode: 'normal'
+};
+
+const TIMESTAMP_PRESETS = [
+	{ value: 'YYYYMMDD-HHmmss', label: 'Compact (20251130-185432)' },
+	{ value: 'YYYY-MM-DD_HH-mm-ss', label: 'Readable (2025-11-30_18-54-32)' },
+	{ value: 'custom', label: 'Custom' }
+];
 
 export default class SmartImageRenamer extends Plugin {
+	settings: SmartImageRenamerSettings;
+
 	async onload() {
+		await this.loadSettings();
+		this.addSettingTab(new SmartImageRenamerSettingTab(this.app, this));
 		this.registerEvent(
 			this.app.workspace.on("editor-paste", this.handlePaste.bind(this))
 		);
@@ -216,7 +238,16 @@ export default class SmartImageRenamer extends Plugin {
 	}
 
 	private sanitizeFilename(name: string): string {
-		// Remove chars not allowed in filenames across platforms
+		if (this.settings.sanitizationMode === 'aggressive') {
+			return name
+				.normalize('NFD')
+				.replace(/[\u0300-\u036f]/g, '') // Remove accents
+				.replace(/[\\/:*?"<>|]/g, '')
+				.replace(/\s+/g, '_')
+				.toLowerCase()
+				.trim();
+		}
+		// Normal mode
 		return name
 			.replace(/[\\/:*?"<>|]/g, "")
 			.replace(/\s+/g, " ")
@@ -270,21 +301,48 @@ export default class SmartImageRenamer extends Plugin {
 			await this.ensureFolderExists(folderPath);
 		}
 
-		let n = 1;
 		let filePath: string;
 
-		while (true) {
-			const fileName = `${baseName} ${n}.${extension}`;
+		if (this.settings.suffixMode === 'timestamp') {
+			const suffix = this.formatTimestamp(this.settings.timestampFormat);
+			const fileName = `${baseName} ${suffix}.${extension}`;
 			filePath = folderPath ? `${folderPath}/${fileName}` : fileName;
 
-			const exists = this.app.vault.getAbstractFileByPath(filePath);
-			if (!exists) {
-				break;
+			// If file exists with same timestamp, add sequential number
+			if (this.app.vault.getAbstractFileByPath(filePath)) {
+				let n = 1;
+				while (true) {
+					const seqFileName = `${baseName} ${suffix}-${n}.${extension}`;
+					filePath = folderPath ? `${folderPath}/${seqFileName}` : seqFileName;
+					if (!this.app.vault.getAbstractFileByPath(filePath)) break;
+					n++;
+				}
 			}
-			n++;
+		} else {
+			// Sequential mode
+			let n = 1;
+			while (true) {
+				const fileName = `${baseName} ${n}.${extension}`;
+				filePath = folderPath ? `${folderPath}/${fileName}` : fileName;
+				if (!this.app.vault.getAbstractFileByPath(filePath)) break;
+				n++;
+			}
 		}
 
 		return filePath;
+	}
+
+	private formatTimestamp(format: string): string {
+		const now = new Date();
+		const pad = (n: number) => n.toString().padStart(2, '0');
+
+		return format
+			.replace('YYYY', now.getFullYear().toString())
+			.replace('MM', pad(now.getMonth() + 1))
+			.replace('DD', pad(now.getDate()))
+			.replace('HH', pad(now.getHours()))
+			.replace('mm', pad(now.getMinutes()))
+			.replace('ss', pad(now.getSeconds()));
 	}
 
 	private async ensureFolderExists(folderPath: string): Promise<void> {
@@ -308,6 +366,133 @@ export default class SmartImageRenamer extends Plugin {
 
 	onunload() {
 		// Cleanup if needed
+	}
+
+	async loadSettings() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	}
+
+	async saveSettings() {
+		await this.saveData(this.settings);
+	}
+}
+
+class SmartImageRenamerSettingTab extends PluginSettingTab {
+	plugin: SmartImageRenamer;
+	customFormatEl: HTMLInputElement | null = null;
+
+	constructor(app: App, plugin: SmartImageRenamer) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
+
+	display(): void {
+		const { containerEl } = this;
+		containerEl.empty();
+
+		// Suffix Mode
+		new Setting(containerEl)
+			.setName('Suffix mode')
+			.setDesc('How to generate the suffix for image filenames')
+			.addDropdown(dropdown => dropdown
+				.addOption('sequential', 'Sequential (1, 2, 3...)')
+				.addOption('timestamp', 'Timestamp')
+				.setValue(this.plugin.settings.suffixMode)
+				.onChange(async (value: 'sequential' | 'timestamp') => {
+					this.plugin.settings.suffixMode = value;
+					await this.plugin.saveSettings();
+					this.display(); // Refresh to show/hide timestamp options
+				}));
+
+		// Timestamp format (only show if timestamp mode)
+		if (this.plugin.settings.suffixMode === 'timestamp') {
+			const isCustom = !TIMESTAMP_PRESETS.slice(0, -1).some(p => p.value === this.plugin.settings.timestampFormat);
+
+			new Setting(containerEl)
+				.setName('Timestamp format')
+				.setDesc('Choose a preset or custom format')
+				.addDropdown(dropdown => {
+					TIMESTAMP_PRESETS.forEach(preset => {
+						dropdown.addOption(preset.value, preset.label);
+					});
+					dropdown.setValue(isCustom ? 'custom' : this.plugin.settings.timestampFormat);
+					dropdown.onChange(async (value) => {
+						if (value === 'custom') {
+							this.showCustomFormat(containerEl);
+						} else {
+							this.plugin.settings.timestampFormat = value;
+							await this.plugin.saveSettings();
+							this.display();
+						}
+					});
+				});
+
+			// Show custom format field if custom is selected
+			if (isCustom) {
+				new Setting(containerEl)
+					.setName('Custom format')
+					.setDesc('Use: YYYY (year), MM (month), DD (day), HH (hour), mm (min), ss (sec)')
+					.addText(text => {
+						this.customFormatEl = text.inputEl;
+						text.setValue(this.plugin.settings.timestampFormat)
+							.setPlaceholder('YYYYMMDD-HHmmss')
+							.onChange(async (value) => {
+								this.plugin.settings.timestampFormat = value || 'YYYYMMDD-HHmmss';
+								await this.plugin.saveSettings();
+							});
+					});
+			}
+		}
+
+		// Sanitization Mode
+		new Setting(containerEl)
+			.setName('Sanitization mode')
+			.setDesc('How to clean note names for use in filenames')
+			.addDropdown(dropdown => dropdown
+				.addOption('normal', 'Normal (remove invalid chars)')
+				.addOption('aggressive', 'Aggressive (lowercase, underscores, no accents)')
+				.setValue(this.plugin.settings.sanitizationMode)
+				.onChange(async (value: 'normal' | 'aggressive') => {
+					this.plugin.settings.sanitizationMode = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Preview
+		containerEl.createEl('h3', { text: 'Preview' });
+		const previewEl = containerEl.createEl('p', { cls: 'setting-item-description' });
+		this.updatePreview(previewEl);
+	}
+
+	private showCustomFormat(containerEl: HTMLElement) {
+		this.display();
+	}
+
+	private updatePreview(el: HTMLElement) {
+		const exampleNote = this.plugin.settings.sanitizationMode === 'aggressive'
+			? 'my_example_note'
+			: 'My Example Note';
+
+		let suffix: string;
+		if (this.plugin.settings.suffixMode === 'timestamp') {
+			suffix = this.formatTimestampPreview(this.plugin.settings.timestampFormat);
+		} else {
+			suffix = '1';
+		}
+
+		el.setText(`Example: ${exampleNote} ${suffix}.png`);
+	}
+
+	private formatTimestampPreview(format: string): string {
+		const now = new Date();
+		const pad = (n: number) => n.toString().padStart(2, '0');
+
+		return format
+			.replace('YYYY', now.getFullYear().toString())
+			.replace('MM', pad(now.getMonth() + 1))
+			.replace('DD', pad(now.getDate()))
+			.replace('HH', pad(now.getHours()))
+			.replace('mm', pad(now.getMinutes()))
+			.replace('ss', pad(now.getSeconds()));
 	}
 }
 
