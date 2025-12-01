@@ -372,6 +372,11 @@ export class BulkRenameService {
 				}
 			}
 
+				// Skip if name hasn't changed (already correctly named)
+			if (image.file.basename === baseName) {
+				continue;
+			}
+
 			items.push({
 				file: image.file,
 				currentName: image.file.basename,

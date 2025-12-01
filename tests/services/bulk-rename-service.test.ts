@@ -288,6 +288,41 @@ describe('BulkRenameService', () => {
 			expect(preview).toHaveLength(1);
 			expect(preview[0].currentName).toBe('linked');
 		});
+
+		it('should skip images that already have the correct name', () => {
+			const note = new TFile('My Note.md');
+			// Image already has the correct name "My Note 1"
+			const alreadyNamed = new TFile('My Note 1.png');
+			// Image with generic name that needs renaming
+			const generic = new TFile('Pasted image 123.png');
+
+			const images = [
+				{ file: alreadyNamed, sourceNote: note, isGeneric: false },
+				{ file: generic, sourceNote: note, isGeneric: true }
+			];
+
+			const preview = service.generatePreview(images, 'replace', 'all');
+
+			// Only the generic image should be in the preview
+			expect(preview).toHaveLength(1);
+			expect(preview[0].currentName).toBe('Pasted image 123');
+			expect(preview[0].newName).toBe('My Note 2');
+		});
+
+		it('should skip images when current name equals generated name exactly', () => {
+			const note = new TFile('Test.md');
+			// Single image already named "Test 1"
+			const alreadyNamed = new TFile('Test 1.png');
+
+			const images = [
+				{ file: alreadyNamed, sourceNote: note, isGeneric: false }
+			];
+
+			const preview = service.generatePreview(images, 'replace', 'all');
+
+			// Should be empty since the name wouldn't change
+			expect(preview).toHaveLength(0);
+		});
 	});
 
 	describe('executeBulkRename', () => {
