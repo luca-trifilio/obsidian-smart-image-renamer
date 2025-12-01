@@ -1276,6 +1276,7 @@ describe('SmartImageRenamer', () => {
 				const imageFile = new TFile('attachments/image.png');
 				(plugin.app.workspace as Workspace)._setActiveFile(mdFile);
 				(plugin as any).bulkRenameService.scanImagesInNote = vi.fn().mockReturnValue([{ file: imageFile }]);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([{ file: imageFile, newName: 'test' }]);
 
 				const commands = (plugin.addCommand as any).mock.calls;
 				const noteCommand = commands.find((c: any) => c[0].id === 'bulk-rename-current-note');
@@ -1294,6 +1295,7 @@ describe('SmartImageRenamer', () => {
 				const imageFile = new TFile('attachments/image.png');
 				(plugin.app.workspace as Workspace)._setActiveFile(mdFile);
 				(plugin as any).bulkRenameService.scanImagesInVault = vi.fn().mockReturnValue([{ file: imageFile }]);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([{ file: imageFile, newName: 'test' }]);
 
 				const commands = (plugin.addCommand as any).mock.calls;
 				const vaultCommand = commands.find((c: any) => c[0].id === 'bulk-rename-vault');
@@ -1309,6 +1311,7 @@ describe('SmartImageRenamer', () => {
 				const imageFile = new TFile('attachments/image.png');
 				(plugin.app.workspace as Workspace)._setActiveFile(null);
 				(plugin as any).bulkRenameService.scanImagesInVault = vi.fn().mockReturnValue([{ file: imageFile }]);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([{ file: imageFile, newName: 'test' }]);
 
 				const commands = (plugin.addCommand as any).mock.calls;
 				const vaultCommand = commands.find((c: any) => c[0].id === 'bulk-rename-vault');
@@ -1343,6 +1346,7 @@ describe('SmartImageRenamer', () => {
 				const mdFile = new TFile('notes/test.md');
 				const imageFile = new TFile('attachments/image.png');
 				(plugin as any).bulkRenameService.scanImagesInNote = vi.fn().mockReturnValue([imageFile]);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([{ file: imageFile, newName: 'test' }]);
 
 				(plugin as any).openBulkRenameModal(mdFile, 'note');
 
@@ -1352,10 +1356,43 @@ describe('SmartImageRenamer', () => {
 			it('should open modal when images found in vault', () => {
 				const imageFile = new TFile('attachments/image.png');
 				(plugin as any).bulkRenameService.scanImagesInVault = vi.fn().mockReturnValue([imageFile]);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([{ file: imageFile, newName: 'test' }]);
 
 				(plugin as any).openBulkRenameModal(null, 'vault');
 
 				expect(bulkRenameModalCalls.length).toBeGreaterThan(0);
+			});
+
+			it('should show notice when images exist but none need renaming (vault)', () => {
+				const note = new TFile('My Note.md');
+				// Image already correctly named
+				const imageFile = new TFile('My Note 1.png');
+				const images = [{ file: imageFile, sourceNote: note, isGeneric: false }];
+
+				(plugin as any).bulkRenameService.scanImagesInVault = vi.fn().mockReturnValue(images);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([]);
+
+				const initialCalls = bulkRenameModalCalls.length;
+				(plugin as any).openBulkRenameModal(null, 'vault');
+
+				expect(noticeHistory.some(n => n.message === 'All images are already correctly named!')).toBe(true);
+				expect(bulkRenameModalCalls.length).toBe(initialCalls); // Modal should NOT be opened
+			});
+
+			it('should show notice when images exist but none need renaming (note)', () => {
+				const note = new TFile('My Note.md');
+				// Image already correctly named
+				const imageFile = new TFile('My Note 1.png');
+				const images = [{ file: imageFile, sourceNote: note, isGeneric: false }];
+
+				(plugin as any).bulkRenameService.scanImagesInNote = vi.fn().mockReturnValue(images);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([]);
+
+				const initialCalls = bulkRenameModalCalls.length;
+				(plugin as any).openBulkRenameModal(note, 'note');
+
+				expect(noticeHistory.some(n => n.message === 'All images are already correctly named!')).toBe(true);
+				expect(bulkRenameModalCalls.length).toBe(initialCalls); // Modal should NOT be opened
 			});
 		});
 
