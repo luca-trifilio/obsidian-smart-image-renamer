@@ -192,7 +192,7 @@ export class OrphanedImagesModal extends Modal {
 		const confirmModal = new ConfirmDeleteModal(
 			this.app,
 			selectedCount,
-			() => this.executeDelete()
+			() => { void this.executeDelete(); }
 		);
 		confirmModal.open();
 	}

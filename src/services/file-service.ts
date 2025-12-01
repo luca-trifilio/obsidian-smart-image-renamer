@@ -10,8 +10,8 @@ export class FileService {
 	}
 
 	getAttachmentFolder(activeFile: TFile): string {
-		// @ts-expect-error - getConfig is internal API
-		const attachmentFolderPath = this.app.vault.getConfig('attachmentFolderPath') || '';
+		const vault = this.app.vault as { getConfig?: (key: string) => string | undefined };
+		const attachmentFolderPath = vault.getConfig?.('attachmentFolderPath') ?? '';
 
 		if (!attachmentFolderPath || attachmentFolderPath === '/') {
 			return '';

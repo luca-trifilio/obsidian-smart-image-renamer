@@ -62,9 +62,11 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 			if (isCustom) {
 				new Setting(containerEl)
 					.setName('Custom format')
+					// eslint-disable-next-line obsidianmd/ui/sentence-case -- format specifiers
 					.setDesc('Use: YYYY (year), MM (month), DD (day), HH (hour), mm (min), ss (sec)')
 					.addText(text => {
 						text.setValue(this.provider.settings.timestampFormat)
+							// eslint-disable-next-line obsidianmd/ui/sentence-case -- format example
 							.setPlaceholder('YYYYMMDD-HHmmss')
 							.onChange(async (value) => {
 								this.provider.settings.timestampFormat = value || 'YYYYMMDD-HHmmss';
@@ -97,6 +99,7 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 			)
 			.addText(text => text
 				.setValue(this.provider.settings.suffixesToRemove.join(', '))
+				// eslint-disable-next-line obsidianmd/ui/sentence-case -- file extensions
 				.setPlaceholder('.excalidraw, .canvas')
 				.onChange(async (value) => {
 					this.provider.settings.suffixesToRemove = value
@@ -124,7 +127,7 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 				}));
 
 		// Preview
-		containerEl.createEl('h3', { text: 'Preview' });
+		new Setting(containerEl).setName("Preview").setHeading();
 		const previewEl = containerEl.createEl('p', { cls: 'setting-item-description' });
 		this.updatePreview(previewEl);
 	}

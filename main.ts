@@ -64,22 +64,20 @@ export default class SmartImageRenamer extends Plugin {
 			callback: () => this.openOrphanedImagesModal(),
 		});
 
-		this.registerEvent(
-			this.app.workspace.on('editor-paste', this.handlePaste.bind(this))
-		);
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
+		this.registerEvent(this.app.workspace.on('editor-paste', this.handlePaste.bind(this)));
 
-		this.registerEvent(
-			this.app.workspace.on('editor-drop', this.handleDrop.bind(this))
-		);
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
+		this.registerEvent(this.app.workspace.on('editor-drop', this.handleDrop.bind(this)));
 
-		this.registerEvent(
-			this.app.workspace.on('editor-menu', this.handleEditorMenu.bind(this))
-		);
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
+		this.registerEvent(this.app.workspace.on('editor-menu', this.handleEditorMenu.bind(this)));
 
 		// Context menu on rendered images - capture phase to run before Obsidian
 		this.registerDomEvent(
 			document,
 			'contextmenu',
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
 			this.handleImageContextMenu.bind(this),
 			true
 		);
@@ -88,14 +86,14 @@ export default class SmartImageRenamer extends Plugin {
 		this.registerDomEvent(
 			document,
 			'drop',
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
 			this.handleGlobalDrop.bind(this),
 			true
 		);
 
 		// Monitor file creation for auto-rename (drag & drop, Excalidraw, etc.)
-		this.registerEvent(
-			this.app.vault.on('create', this.handleFileCreate.bind(this))
-		);
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
+		this.registerEvent(this.app.vault.on('create', this.handleFileCreate.bind(this)));
 
 		// Mark startup as complete after a delay to avoid processing existing files
 		// during vault indexing
@@ -109,7 +107,7 @@ export default class SmartImageRenamer extends Plugin {
 	}
 
 	async loadSettings(): Promise<void> {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as SmartImageRenamerSettings | null);
 	}
 
 	async saveSettings(): Promise<void> {
@@ -224,7 +222,7 @@ export default class SmartImageRenamer extends Plugin {
 				const newFileName = await this.fileService.renameFile(file, sanitized);
 				new Notice(`Renamed to ${newFileName}`);
 			} catch (error) {
-				new Notice(`Failed to rename: ${error}`);
+				new Notice(`Failed to rename: ${String(error)}`);
 			}
 		}).open();
 	}

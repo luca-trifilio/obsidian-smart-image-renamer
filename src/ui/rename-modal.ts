@@ -2,10 +2,10 @@ import { App, Modal, TFile, Setting } from 'obsidian';
 
 export class RenameImageModal extends Modal {
 	private file: TFile;
-	private onSubmit: (newName: string) => void;
+	private onSubmit: (newName: string) => void | Promise<void>;
 	private inputEl: HTMLInputElement;
 
-	constructor(app: App, file: TFile, onSubmit: (newName: string) => void) {
+	constructor(app: App, file: TFile, onSubmit: (newName: string) => void | Promise<void>) {
 		super(app);
 		this.file = file;
 		this.onSubmit = onSubmit;
@@ -51,7 +51,7 @@ export class RenameImageModal extends Modal {
 	private submit(): void {
 		const newName = this.inputEl.value.trim();
 		if (newName && newName !== this.file.basename) {
-			this.onSubmit(newName);
+			void this.onSubmit(newName);
 		}
 		this.close();
 	}

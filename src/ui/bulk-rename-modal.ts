@@ -43,7 +43,7 @@ export class BulkRenameModal extends Modal {
 		this.listContainer = contentEl.createDiv({ cls: 'bulk-rename-list' });
 		this.renderFooter();
 
-		this.scanAndPreview();
+		void this.scanAndPreview();
 	}
 
 	private renderHeader(): void {
@@ -67,7 +67,7 @@ export class BulkRenameModal extends Modal {
 					.setDisabled(!this.activeNote)
 					.onChange((value: BulkRenameScope) => {
 						this.renameScope = value;
-						this.scanAndPreview();
+						void this.scanAndPreview();
 					});
 			});
 
@@ -77,7 +77,7 @@ export class BulkRenameModal extends Modal {
 			.setDesc('Which images to include')
 			.addDropdown((dropdown) => {
 				dropdown
-					.addOption('generic', 'Only generic names (Pasted, Screenshot...)')
+					.addOption('generic', 'Only generic names (pasted, screenshot...)')
 					.addOption('all', 'All images')
 					.setValue(this.filter)
 					.onChange((value: ImageFilter) => {
@@ -92,8 +92,8 @@ export class BulkRenameModal extends Modal {
 			.setDesc('How to generate new names')
 			.addDropdown((dropdown) => {
 				dropdown
-					.addOption('replace', 'Use note name (Note 1, Note 2...)')
-					.addOption('prepend', 'Prepend note name (Note - Original)')
+					.addOption('replace', 'Use note name (note 1, note 2...)')
+					.addOption('prepend', 'Prepend note name (note - original)')
 					.addOption('pattern', 'Custom pattern')
 					.setValue(this.mode)
 					.onChange((value: BulkRenameMode) => {
@@ -123,6 +123,7 @@ export class BulkRenameModal extends Modal {
 	private patternSetting: Setting;
 
 	private updatePatternVisibility(): void {
+		// eslint-disable-next-line @typescript-eslint/no-misused-promises -- Setting is not a Promise
 		if (this.patternSetting) {
 			this.patternSetting.settingEl.toggle(this.mode === 'pattern');
 		}
