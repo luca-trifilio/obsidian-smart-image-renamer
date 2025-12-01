@@ -224,42 +224,66 @@ export default class SmartImageRenamer extends Plugin {
 	}
 
 	private async handleFileCreate(file: TAbstractFile): Promise<void> {
+		console.log('[Smart Image Renamer] File created:', file.path);
+
 		// Only process if setting is enabled
-		if (!this.settings.autoRenameOnCreate) return;
+		if (!this.settings.autoRenameOnCreate) {
+			console.log('[Smart Image Renamer] Auto-rename disabled in settings');
+			return;
+		}
 
 		// Only process files (not folders)
-		if (!(file instanceof TFile)) return;
+		if (!(file instanceof TFile)) {
+			console.log('[Smart Image Renamer] Not a file, skipping');
+			return;
+		}
 
 		// Only process images
-		if (!isImageFile(file.extension)) return;
+		if (!isImageFile(file.extension)) {
+			console.log('[Smart Image Renamer] Not an image file:', file.extension);
+			return;
+		}
 
 		// Skip if we already processed this file (e.g., from paste handler)
-		if (this.processingFiles.has(file.name)) return;
+		if (this.processingFiles.has(file.name)) {
+			console.log('[Smart Image Renamer] Already processing this file');
+			return;
+		}
 
 		// Check if it has a generic name
-		if (!this.bulkRenameService.isGenericName(file.basename)) return;
+		const isGeneric = this.bulkRenameService.isGenericName(file.basename);
+		console.log('[Smart Image Renamer] Is generic name?', file.basename, isGeneric);
+		if (!isGeneric) return;
 
 		// Small delay to let the file system settle and get the active file
 		await new Promise(resolve => setTimeout(resolve, 100));
 
 		// Get the active file to use for naming
 		const activeFile = this.app.workspace.getActiveFile();
+		console.log('[Smart Image Renamer] Active file:', activeFile?.path);
 		if (!activeFile) return;
 
 		// Generate new name based on active file
 		const baseName = this.getCleanBaseName(activeFile);
+		console.log('[Smart Image Renamer] Clean base name:', baseName);
 		const sanitized = sanitizeFilename(baseName, this.settings.aggressiveSanitization);
+		console.log('[Smart Image Renamer] Sanitized name:', sanitized);
 
-		if (!sanitized) return;
+		if (!sanitized) {
+			console.log('[Smart Image Renamer] Sanitized name is empty, skipping');
+			return;
+		}
 
 		try {
 			// Mark as processing
 			this.processingFiles.add(file.path);
+			console.log('[Smart Image Renamer] Renaming to:', sanitized);
 
 			const newFileName = await this.fileService.renameFile(file, sanitized);
 			new Notice(`Auto-renamed to ${newFileName}`);
+			console.log('[Smart Image Renamer] Renamed successfully to:', newFileName);
 		} catch (error) {
-			console.error('Smart Image Renamer auto-rename error:', error);
+			console.error('[Smart Image Renamer] Auto-rename error:', error);
 		} finally {
 			this.processingFiles.delete(file.path);
 		}
