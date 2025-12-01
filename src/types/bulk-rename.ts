@@ -59,3 +59,39 @@ export interface BulkRenameResult {
 	/** Error messages for failed renames */
 	errors: string[];
 }
+
+/**
+ * An orphaned image with selection state
+ */
+export interface OrphanedImage {
+	/** The image file */
+	file: TFile;
+	/** File size in bytes */
+	size: number;
+	/** Whether this item is selected for action */
+	selected: boolean;
+}
+
+/**
+ * Result of scanning for orphaned images
+ */
+export interface OrphanScanResult {
+	/** Orphaned images (not referenced anywhere) */
+	orphaned: OrphanedImage[];
+	/** Total images scanned */
+	totalImages: number;
+	/** Images that are referenced */
+	referencedCount: number;
+}
+
+/**
+ * Result of orphan cleanup operation (delete or move)
+ */
+export interface OrphanActionResult {
+	/** Number of images successfully processed */
+	success: number;
+	/** Number of images that failed */
+	failed: number;
+	/** Error messages for failures */
+	errors: string[];
+}

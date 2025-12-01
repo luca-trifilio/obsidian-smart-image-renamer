@@ -22,9 +22,10 @@ Obsidian plugin that automatically renames pasted images based on the active not
 │   │   ├── image-processor.ts    # Clipboard and image processing
 │   │   └── bulk-rename-service.ts # Bulk rename operations
 │   └── ui/
-│       ├── rename-modal.ts      # Manual rename modal
-│       ├── bulk-rename-modal.ts # Bulk rename modal
-│       └── settings-tab.ts      # Settings tab UI
+│       ├── rename-modal.ts         # Manual rename modal
+│       ├── bulk-rename-modal.ts    # Bulk rename modal
+│       ├── orphaned-images-modal.ts # Orphan cleanup modal
+│       └── settings-tab.ts         # Settings tab UI
 ├── tests/
 │   ├── __mocks__/
 │   │   └── obsidian.ts     # Obsidian API mock

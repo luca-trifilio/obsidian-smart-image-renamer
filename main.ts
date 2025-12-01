@@ -1,7 +1,7 @@
 import { Plugin, TFile, MarkdownView, Notice, Menu, Editor, TAbstractFile } from 'obsidian';
 import { SmartImageRenamerSettings, DEFAULT_SETTINGS } from './src/types/settings';
 import { FileService, ImageProcessor, BulkRenameService } from './src/services';
-import { SmartImageRenamerSettingTab, RenameImageModal, BulkRenameModal } from './src/ui';
+import { SmartImageRenamerSettingTab, RenameImageModal, BulkRenameModal, OrphanedImagesModal } from './src/ui';
 import {
 	sanitizeFilename,
 	isImageFile,
@@ -56,6 +56,12 @@ export default class SmartImageRenamer extends Plugin {
 				const activeFile = this.app.workspace.getActiveFile();
 				this.openBulkRenameModal(activeFile, 'vault');
 			},
+		});
+
+		this.addCommand({
+			id: 'find-orphaned-images',
+			name: 'Find orphaned images',
+			callback: () => this.openOrphanedImagesModal(),
 		});
 
 		this.registerEvent(
@@ -136,6 +142,17 @@ export default class SmartImageRenamer extends Plugin {
 			activeFile,
 			scope
 		).open();
+	}
+
+	private openOrphanedImagesModal(): void {
+		const result = this.bulkRenameService.findOrphanedImages();
+
+		if (result.orphaned.length === 0) {
+			new Notice('No orphaned images found. Your vault is clean!');
+			return;
+		}
+
+		new OrphanedImagesModal(this.app, this.bulkRenameService, result).open();
 	}
 
 	private handleImageContextMenu(evt: MouseEvent): void {

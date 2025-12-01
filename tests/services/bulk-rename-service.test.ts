@@ -487,4 +487,276 @@ describe('BulkRenameService', () => {
 			expect(result.failed).toBe(1);
 		});
 	});
+
+	describe('isReferencedAnywhere', () => {
+		it('should return true if image is referenced in markdown note', () => {
+			const note = new TFile('notes/test.md');
+			const image = new TFile('attachments/referenced.png');
+			(app.vault as Vault)._addFile(note);
+			(app.vault as Vault)._addFile(image);
+
+			(app.metadataCache as MetadataCache)._setFileCache(note.path, {
+				embeds: [{ link: 'referenced.png', displayText: '' }]
+			});
+			(app.metadataCache as MetadataCache)._setLinkResolver((linkpath) => {
+				if (linkpath === 'referenced.png') return image;
+				return null;
+			});
+
+			const isReferenced = service.isReferencedAnywhere(image);
+
+			expect(isReferenced).toBe(true);
+		});
+
+		it('should return true if image is referenced in canvas file', () => {
+			const canvas = new TFile('canvas/board.canvas');
+			const image = new TFile('attachments/canvas-img.png');
+			(app.vault as Vault)._addFile(canvas);
+			(app.vault as Vault)._addFile(image);
+
+			(app.metadataCache as MetadataCache)._setFileCache(canvas.path, {
+				embeds: [{ link: 'canvas-img.png', displayText: '' }]
+			});
+			(app.metadataCache as MetadataCache)._setLinkResolver((linkpath) => {
+				if (linkpath === 'canvas-img.png') return image;
+				return null;
+			});
+
+			const isReferenced = service.isReferencedAnywhere(image);
+
+			expect(isReferenced).toBe(true);
+		});
+
+		it('should return true if image is referenced in excalidraw file', () => {
+			const excalidraw = new TFile('drawings/diagram.excalidraw.md');
+			const image = new TFile('attachments/excalidraw-img.png');
+			(app.vault as Vault)._addFile(excalidraw);
+			(app.vault as Vault)._addFile(image);
+
+			(app.metadataCache as MetadataCache)._setFileCache(excalidraw.path, {
+				embeds: [{ link: 'excalidraw-img.png', displayText: '' }]
+			});
+			(app.metadataCache as MetadataCache)._setLinkResolver((linkpath) => {
+				if (linkpath === 'excalidraw-img.png') return image;
+				return null;
+			});
+
+			const isReferenced = service.isReferencedAnywhere(image);
+
+			expect(isReferenced).toBe(true);
+		});
+
+		it('should return false if image is not referenced anywhere', () => {
+			const note = new TFile('notes/test.md');
+			const orphan = new TFile('attachments/orphan.png');
+			(app.vault as Vault)._addFile(note);
+			(app.vault as Vault)._addFile(orphan);
+
+			// Note has no embeds
+			(app.metadataCache as MetadataCache)._setFileCache(note.path, {});
+
+			const isReferenced = service.isReferencedAnywhere(orphan);
+
+			expect(isReferenced).toBe(false);
+		});
+	});
+
+	describe('findOrphanedImages', () => {
+		it('should return empty when all images are referenced', () => {
+			const note = new TFile('notes/test.md');
+			const image = new TFile('attachments/referenced.png');
+			(app.vault as Vault)._addFile(note);
+			(app.vault as Vault)._addFile(image);
+
+			(app.metadataCache as MetadataCache)._setFileCache(note.path, {
+				embeds: [{ link: 'referenced.png', displayText: '' }]
+			});
+			(app.metadataCache as MetadataCache)._setLinkResolver((linkpath) => {
+				if (linkpath === 'referenced.png') return image;
+				return null;
+			});
+
+			const result = service.findOrphanedImages();
+
+			expect(result.orphaned).toHaveLength(0);
+			expect(result.totalImages).toBe(1);
+			expect(result.referencedCount).toBe(1);
+		});
+
+		it('should find orphaned images', () => {
+			const note = new TFile('notes/test.md');
+			const referenced = new TFile('attachments/referenced.png');
+			const orphan = new TFile('attachments/orphan.png');
+			(app.vault as Vault)._addFile(note);
+			(app.vault as Vault)._addFile(referenced);
+			(app.vault as Vault)._addFile(orphan);
+
+			(app.metadataCache as MetadataCache)._setFileCache(note.path, {
+				embeds: [{ link: 'referenced.png', displayText: '' }]
+			});
+			(app.metadataCache as MetadataCache)._setLinkResolver((linkpath) => {
+				if (linkpath === 'referenced.png') return referenced;
+				return null;
+			});
+
+			const result = service.findOrphanedImages();
+
+			expect(result.orphaned).toHaveLength(1);
+			expect(result.orphaned[0].file.path).toBe('attachments/orphan.png');
+			expect(result.orphaned[0].selected).toBe(true);
+			expect(result.totalImages).toBe(2);
+			expect(result.referencedCount).toBe(1);
+		});
+
+		it('should include file size in orphaned images', () => {
+			const orphan = new TFile('attachments/orphan.png');
+			orphan.stat = { size: 12345, ctime: 0, mtime: 0 };
+			(app.vault as Vault)._addFile(orphan);
+
+			const result = service.findOrphanedImages();
+
+			expect(result.orphaned[0].size).toBe(12345);
+		});
+
+		it('should handle empty vault', () => {
+			const result = service.findOrphanedImages();
+
+			expect(result.orphaned).toHaveLength(0);
+			expect(result.totalImages).toBe(0);
+			expect(result.referencedCount).toBe(0);
+		});
+	});
+
+	describe('deleteOrphanedImages', () => {
+		it('should delete selected images', async () => {
+			const orphan1 = new TFile('orphan1.png');
+			const orphan2 = new TFile('orphan2.png');
+			(app.vault as Vault)._addFile(orphan1);
+			(app.vault as Vault)._addFile(orphan2);
+
+			const images = [
+				{ file: orphan1, size: 100, selected: true },
+				{ file: orphan2, size: 200, selected: true }
+			];
+
+			const result = await service.deleteOrphanedImages(images);
+
+			expect(result.success).toBe(2);
+			expect(result.failed).toBe(0);
+			expect(app.vault.trash).toHaveBeenCalledWith(orphan1, true);
+			expect(app.vault.trash).toHaveBeenCalledWith(orphan2, true);
+		});
+
+		it('should skip unselected images', async () => {
+			const orphan1 = new TFile('orphan1.png');
+			const orphan2 = new TFile('orphan2.png');
+			(app.vault as Vault)._addFile(orphan1);
+			(app.vault as Vault)._addFile(orphan2);
+
+			const images = [
+				{ file: orphan1, size: 100, selected: true },
+				{ file: orphan2, size: 200, selected: false }
+			];
+
+			const result = await service.deleteOrphanedImages(images);
+
+			expect(result.success).toBe(1);
+			expect(app.vault.trash).toHaveBeenCalledTimes(1);
+			expect(app.vault.trash).toHaveBeenCalledWith(orphan1, true);
+		});
+
+		it('should handle delete errors', async () => {
+			const orphan = new TFile('orphan.png');
+			(app.vault as Vault)._addFile(orphan);
+
+			app.vault.trash.mockRejectedValueOnce(new Error('Permission denied'));
+
+			const images = [{ file: orphan, size: 100, selected: true }];
+
+			const result = await service.deleteOrphanedImages(images);
+
+			expect(result.success).toBe(0);
+			expect(result.failed).toBe(1);
+			expect(result.errors[0]).toContain('orphan.png');
+			expect(result.errors[0]).toContain('Permission denied');
+		});
+	});
+
+	describe('moveOrphanedImages', () => {
+		it('should move selected images to target folder', async () => {
+			const orphan1 = new TFile('attachments/orphan1.png');
+			const orphan2 = new TFile('other/orphan2.png');
+			(app.vault as Vault)._addFile(orphan1);
+			(app.vault as Vault)._addFile(orphan2);
+
+			const images = [
+				{ file: orphan1, size: 100, selected: true },
+				{ file: orphan2, size: 200, selected: true }
+			];
+
+			const result = await service.moveOrphanedImages(images, '_orphaned');
+
+			expect(result.success).toBe(2);
+			expect(result.failed).toBe(0);
+			expect(app.fileManager.renameFile).toHaveBeenCalledWith(orphan1, '_orphaned/orphan1.png');
+			expect(app.fileManager.renameFile).toHaveBeenCalledWith(orphan2, '_orphaned/orphan2.png');
+		});
+
+		it('should create target folder if it does not exist', async () => {
+			const orphan = new TFile('orphan.png');
+			(app.vault as Vault)._addFile(orphan);
+
+			const images = [{ file: orphan, size: 100, selected: true }];
+
+			await service.moveOrphanedImages(images, '_orphaned');
+
+			expect(app.vault.createFolder).toHaveBeenCalledWith('_orphaned');
+		});
+
+		it('should not create folder if it already exists', async () => {
+			const orphan = new TFile('orphan.png');
+			const folder = { path: '_orphaned', name: '_orphaned' };
+			(app.vault as Vault)._addFile(orphan);
+			(app.vault as any)._addFolder(folder);
+
+			const images = [{ file: orphan, size: 100, selected: true }];
+
+			await service.moveOrphanedImages(images, '_orphaned');
+
+			expect(app.vault.createFolder).not.toHaveBeenCalled();
+		});
+
+		it('should skip unselected images', async () => {
+			const orphan1 = new TFile('orphan1.png');
+			const orphan2 = new TFile('orphan2.png');
+			(app.vault as Vault)._addFile(orphan1);
+			(app.vault as Vault)._addFile(orphan2);
+
+			const images = [
+				{ file: orphan1, size: 100, selected: true },
+				{ file: orphan2, size: 200, selected: false }
+			];
+
+			const result = await service.moveOrphanedImages(images, '_orphaned');
+
+			expect(result.success).toBe(1);
+			expect(app.fileManager.renameFile).toHaveBeenCalledTimes(1);
+		});
+
+		it('should handle move errors', async () => {
+			const orphan = new TFile('orphan.png');
+			(app.vault as Vault)._addFile(orphan);
+
+			app.fileManager.renameFile.mockRejectedValueOnce(new Error('File already exists'));
+
+			const images = [{ file: orphan, size: 100, selected: true }];
+
+			const result = await service.moveOrphanedImages(images, '_orphaned');
+
+			expect(result.success).toBe(0);
+			expect(result.failed).toBe(1);
+			expect(result.errors[0]).toContain('orphan.png');
+			expect(result.errors[0]).toContain('File already exists');
+		});
+	});
 });

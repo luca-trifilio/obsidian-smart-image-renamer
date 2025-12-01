@@ -16,3 +16,6 @@ Thumbs.db
 # npm
 npm-debug.log*
 .env
+
+# Coverage
+coverage/

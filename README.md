@@ -14,11 +14,34 @@ When you paste an image into a note:
 
 Sequential numbering ensures no overwrites — if "My Meeting 1.png" exists, it creates "My Meeting 2.png".
 
+### Auto-Rename on Drag & Drop
+
+Images dropped into notes or Excalidraw drawings are automatically renamed using the same logic as paste.
+
 ### Manual Image Renaming
 
 Right-click on any image (either the rendered image or the `![[image.png]]` link) and select **"Rename image"** to rename it. The plugin automatically:
 - Updates all references to the image across your vault
 - Sanitizes the filename to remove invalid characters
+
+### Bulk Rename
+
+Use the command palette:
+- **Rename images in current note** - Rename all images linked in the current note
+- **Rename all images in vault** - Rename all images across your vault
+
+Filter by "generic names" (Pasted image, Screenshot, IMG_001...) and choose rename mode:
+- **Replace**: Use note name with sequential suffix
+- **Prepend**: Add note name before original name
+- **Pattern**: Custom pattern with `{note}`, `{original}`, `{n}` placeholders
+
+### Find Orphaned Images
+
+Find and clean up images not referenced by any note, canvas, or Excalidraw file:
+- Command: **Find orphaned images**
+- Shows thumbnails, file sizes, and paths
+- **Delete**: Move selected to system trash (recoverable)
+- **Move**: Relocate to a folder (default: `_orphaned`)
 
 ### Suffix Modes
 

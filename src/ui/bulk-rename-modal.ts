@@ -7,6 +7,7 @@ import {
 	ImageInfo,
 	BulkRenameScope,
 } from '../types/bulk-rename';
+import { OrphanedImagesModal } from './orphaned-images-modal';
 
 export class BulkRenameModal extends Modal {
 	private service: BulkRenameService;
@@ -217,10 +218,18 @@ export class BulkRenameModal extends Modal {
 
 		// Orphan images section
 		if (orphanImages.length > 0) {
-			this.listContainer.createEl('p', {
+			const orphanHeader = this.listContainer.createDiv({ cls: 'bulk-rename-orphan-header' });
+
+			orphanHeader.createEl('p', {
 				text: `${orphanImages.length} orphan image${orphanImages.length !== 1 ? 's' : ''} (not linked):`,
 				cls: 'bulk-rename-count bulk-rename-orphan-title',
 			});
+
+			const manageBtn = orphanHeader.createEl('button', {
+				text: 'Manage orphans →',
+				cls: 'mod-muted bulk-rename-manage-orphans-btn',
+			});
+			manageBtn.addEventListener('click', () => this.openOrphanedImagesModal());
 
 			const orphanListEl = this.listContainer.createEl('div', { cls: 'bulk-rename-items bulk-rename-orphan-items' });
 			for (const img of orphanImages) {
@@ -302,6 +311,12 @@ export class BulkRenameModal extends Modal {
 			item.selected = selected;
 		}
 		this.renderList();
+	}
+
+	private openOrphanedImagesModal(): void {
+		const scanResult = this.service.findOrphanedImages();
+		this.close();
+		new OrphanedImagesModal(this.app, this.service, scanResult).open();
 	}
 
 	private async executeRename(): Promise<void> {
