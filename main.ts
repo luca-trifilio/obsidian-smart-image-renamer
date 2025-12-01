@@ -84,6 +84,21 @@ export default class SmartImageRenamer extends Plugin {
 	}
 
 	private openBulkRenameModal(activeFile: TFile | null, scope: BulkRenameScope): void {
+		// Check if there are images before opening modal
+		if (scope === 'note' && activeFile) {
+			const images = this.bulkRenameService.scanImagesInNote(activeFile);
+			if (images.length === 0) {
+				new Notice('No images found in current note');
+				return;
+			}
+		} else if (scope === 'vault') {
+			const images = this.bulkRenameService.scanImagesInVault();
+			if (images.length === 0) {
+				new Notice('No images found in vault');
+				return;
+			}
+		}
+
 		new BulkRenameModal(
 			this.app,
 			this.bulkRenameService,
