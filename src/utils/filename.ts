@@ -1,0 +1,91 @@
+import { IMAGE_EXTENSIONS, MIME_TO_EXTENSION, IMAGE_LINK_REGEX } from './constants';
+
+/** Characters that are invalid in filenames across Windows/Mac/Linux */
+const INVALID_FILENAME_CHARS = /[\\/:*?"<>|]/g;
+
+/**
+ * Sanitizes a filename to ensure it's valid for the filesystem.
+ *
+ * @param name - The filename to sanitize
+ * @param aggressive - When true, converts to URL-friendly format:
+ *   - Lowercase
+ *   - Spaces → underscores
+ *   - Accents removed (é → e, ñ → n)
+ *
+ *   When false, only removes invalid filesystem characters.
+ *   This is useful for manual renames where user might type invalid chars.
+ *
+ * @returns The sanitized filename
+ */
+export function sanitizeFilename(name: string, aggressive: boolean): string {
+	if (aggressive) {
+		return name
+			.trim()
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '') // Remove diacritics (accents)
+			.replace(INVALID_FILENAME_CHARS, '')
+			.replace(/[^a-zA-Z0-9\s_-]/g, '') // Remove non-alphanumeric except space, underscore, hyphen
+			.replace(/\s+/g, '_')
+			.replace(/_+/g, '_') // Collapse multiple underscores
+			.replace(/^_|_$/g, '') // Remove leading/trailing underscores
+			.toLowerCase();
+	}
+
+	// Standard mode: only remove invalid characters
+	return name
+		.replace(INVALID_FILENAME_CHARS, '')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+export function formatTimestamp(format: string): string {
+	const now = new Date();
+	const pad = (n: number) => n.toString().padStart(2, '0');
+
+	return format
+		.replace('YYYY', now.getFullYear().toString())
+		.replace('MM', pad(now.getMonth() + 1))
+		.replace('DD', pad(now.getDate()))
+		.replace('HH', pad(now.getHours()))
+		.replace('mm', pad(now.getMinutes()))
+		.replace('ss', pad(now.getSeconds()));
+}
+
+export function isImageFile(ext: string): boolean {
+	return IMAGE_EXTENSIONS.includes(ext.toLowerCase() as typeof IMAGE_EXTENSIONS[number]);
+}
+
+export function getExtensionFromMime(mimeType: string): string {
+	return MIME_TO_EXTENSION[mimeType] || 'png';
+}
+
+export function getImageLinkAtCursor(line: string, cursorPos: number): string | null {
+	// Reset regex lastIndex for fresh search
+	const regex = new RegExp(IMAGE_LINK_REGEX.source, 'gi');
+	let match;
+
+	while ((match = regex.exec(line)) !== null) {
+		const start = match.index;
+		const end = start + match[0].length;
+		if (cursorPos >= start && cursorPos <= end) {
+			return match[1];
+		}
+	}
+	return null;
+}
+
+export function extractImagePathFromSrc(src: string): string | null {
+	let imagePath = decodeURIComponent(src);
+
+	// Handle app://... URLs
+	if (imagePath.includes('app://')) {
+		const match = imagePath.match(/app:\/\/[^/]+\/(.+?)(\?|$)/);
+		if (match) imagePath = match[1];
+	}
+
+	// Get just the filename (remove query params if any)
+	let fileName = imagePath.split('/').pop();
+	if (!fileName) return null;
+
+	return fileName.split('?')[0];
+}
