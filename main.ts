@@ -1,18 +1,20 @@
 import { Plugin, TFile, MarkdownView, Notice, Menu, Editor } from 'obsidian';
 import { SmartImageRenamerSettings, DEFAULT_SETTINGS } from './src/types/settings';
-import { FileService, ImageProcessor } from './src/services';
-import { SmartImageRenamerSettingTab, RenameImageModal } from './src/ui';
+import { FileService, ImageProcessor, BulkRenameService } from './src/services';
+import { SmartImageRenamerSettingTab, RenameImageModal, BulkRenameModal } from './src/ui';
 import {
 	sanitizeFilename,
 	isImageFile,
 	getImageLinkAtCursor,
 	extractImagePathFromSrc
 } from './src/utils';
+import { BulkRenameScope } from './src/types/bulk-rename';
 
 export default class SmartImageRenamer extends Plugin {
 	settings: SmartImageRenamerSettings;
 	private fileService: FileService;
 	private imageProcessor: ImageProcessor;
+	private bulkRenameService: BulkRenameService;
 	private pendingImageFile: TFile | undefined;
 
 	async onload(): Promise<void> {
@@ -20,8 +22,34 @@ export default class SmartImageRenamer extends Plugin {
 
 		this.fileService = new FileService(this.app, this.settings);
 		this.imageProcessor = new ImageProcessor(this.fileService, this.settings);
+		this.bulkRenameService = new BulkRenameService(this.app, this.settings);
 
 		this.addSettingTab(new SmartImageRenamerSettingTab(this.app, this));
+
+		// Register commands
+		this.addCommand({
+			id: 'bulk-rename-current-note',
+			name: 'Rename images in current note',
+			checkCallback: (checking: boolean) => {
+				const activeFile = this.app.workspace.getActiveFile();
+				if (activeFile?.extension === 'md') {
+					if (!checking) {
+						this.openBulkRenameModal(activeFile, 'note');
+					}
+					return true;
+				}
+				return false;
+			},
+		});
+
+		this.addCommand({
+			id: 'bulk-rename-vault',
+			name: 'Rename all images in vault',
+			callback: () => {
+				const activeFile = this.app.workspace.getActiveFile();
+				this.openBulkRenameModal(activeFile, 'vault');
+			},
+		});
 
 		this.registerEvent(
 			this.app.workspace.on('editor-paste', this.handlePaste.bind(this))
@@ -52,6 +80,16 @@ export default class SmartImageRenamer extends Plugin {
 		await this.saveData(this.settings);
 		this.fileService?.updateSettings(this.settings);
 		this.imageProcessor?.updateSettings(this.settings);
+		this.bulkRenameService?.updateSettings(this.settings);
+	}
+
+	private openBulkRenameModal(activeFile: TFile | null, scope: BulkRenameScope): void {
+		new BulkRenameModal(
+			this.app,
+			this.bulkRenameService,
+			activeFile,
+			scope
+		).open();
 	}
 
 	private handleImageContextMenu(evt: MouseEvent): void {
