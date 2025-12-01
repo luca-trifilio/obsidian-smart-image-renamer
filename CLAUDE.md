@@ -42,10 +42,26 @@ npm run test:coverage # Tests with coverage report
 ```
 
 ## Release Process
+1. Crea feature branch e lavora
+2. Push e apri PR verso `main`
+3. Aggiungi label: `release:patch`, `release:minor`, o `release:major`
+4. CI deve passare (test + build + check label)
+5. Merge → auto-release bumpa versione, crea tag e GitHub Release
+
+**Workflows:**
+- `ci.yml` - Test + Build + Check label obbligatoria
+- `auto-release.yml` - Bump + Release automatica al merge
+
+## Local Testing
 ```bash
-npm version patch|minor|major  # Bumps version, updates manifest.json & versions.json, creates commit+tag
-git push && git push --tags    # Triggers GitHub Actions → creates GitHub Release with main.js + manifest.json
+npm run build
+cp main.js manifest.json ~/Documents/Taccuino\ Cerusico/.obsidian/plugins/smart-image-renamer/
+# Reload Obsidian (Cmd+R)
 ```
+
+## Authentication
+- PAT personale in `.env` (non committato)
+- Remote usa token embedded: `https://<PAT>@github.com/luca-trifilio/...`
 
 ## Key Settings
 - `suffixMode`: 'sequential' | 'timestamp' - How to suffix duplicate image names
