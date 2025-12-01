@@ -1,5 +1,46 @@
 import { vi } from 'vitest';
 
+// Event Emitter for testing event handlers
+export class MockEventRef {
+	constructor(
+		public emitter: MockEventEmitter,
+		public event: string,
+		public handler: Function
+	) {}
+}
+
+export class MockEventEmitter {
+	private handlers: Map<string, Function[]> = new Map();
+
+	on(event: string, handler: Function): MockEventRef {
+		const handlers = this.handlers.get(event) || [];
+		handlers.push(handler);
+		this.handlers.set(event, handlers);
+		return new MockEventRef(this, event, handler);
+	}
+
+	off(event: string, handler: Function): void {
+		const handlers = this.handlers.get(event) || [];
+		const index = handlers.indexOf(handler);
+		if (index > -1) {
+			handlers.splice(index, 1);
+		}
+	}
+
+	trigger(event: string, ...args: any[]): void {
+		const handlers = this.handlers.get(event) || [];
+		handlers.forEach(handler => handler(...args));
+	}
+
+	_getHandlers(event: string): Function[] {
+		return this.handlers.get(event) || [];
+	}
+
+	_clearHandlers(): void {
+		this.handlers.clear();
+	}
+}
+
 // Mock TFile
 export class TFile {
 	path: string;
@@ -48,8 +89,8 @@ export class App {
 	fileManager = new FileManager();
 }
 
-// Mock Vault
-export class Vault {
+// Mock Vault with event support
+export class Vault extends MockEventEmitter {
 	private files: Map<string, TFile> = new Map();
 	private folders: Map<string, TFolder> = new Map();
 
@@ -67,10 +108,16 @@ export class Vault {
 
 	createBinary = vi.fn().mockResolvedValue(undefined);
 	createFolder = vi.fn().mockResolvedValue(undefined);
+	read = vi.fn().mockResolvedValue('');
+	cachedRead = vi.fn().mockResolvedValue('');
 
 	// Test helpers
 	_addFile(file: TFile): void {
 		this.files.set(file.path, file);
+	}
+
+	_removeFile(path: string): void {
+		this.files.delete(path);
 	}
 
 	_addFolder(folder: TFolder): void {
@@ -80,6 +127,7 @@ export class Vault {
 	_clear(): void {
 		this.files.clear();
 		this.folders.clear();
+		this._clearHandlers();
 	}
 
 	// @ts-expect-error - Mock internal API
@@ -88,9 +136,45 @@ export class Vault {
 	}
 }
 
-// Mock Workspace
-export class Workspace {
-	on = vi.fn();
+// Mock Workspace with event support
+export class Workspace extends MockEventEmitter {
+	private activeFile: TFile | null = null;
+	private activeLeaf: WorkspaceLeaf | null = null;
+
+	getActiveFile(): TFile | null {
+		return this.activeFile;
+	}
+
+	getActiveViewOfType<T>(type: any): T | null {
+		if (this.activeLeaf) {
+			return this.activeLeaf.view as unknown as T;
+		}
+		return null;
+	}
+
+	// Test helpers
+	_setActiveFile(file: TFile | null): void {
+		this.activeFile = file;
+	}
+
+	_setActiveLeaf(leaf: WorkspaceLeaf | null): void {
+		this.activeLeaf = leaf;
+	}
+
+	_clear(): void {
+		this.activeFile = null;
+		this.activeLeaf = null;
+		this._clearHandlers();
+	}
+}
+
+// Mock WorkspaceLeaf
+export class WorkspaceLeaf {
+	view: MarkdownView | null = null;
+
+	constructor(view?: MarkdownView) {
+		this.view = view || null;
+	}
 }
 
 // Mock CachedMetadata
@@ -99,8 +183,8 @@ export interface CachedMetadata {
 	links?: { link: string; displayText: string }[];
 }
 
-// Mock MetadataCache
-export class MetadataCache {
+// Mock MetadataCache with event support
+export class MetadataCache extends MockEventEmitter {
 	private fileCache: Map<string, CachedMetadata> = new Map();
 	private linkResolver: ((linkpath: string, sourcePath: string) => TFile | null) | null = null;
 
@@ -127,6 +211,7 @@ export class MetadataCache {
 	_clear(): void {
 		this.fileCache.clear();
 		this.linkResolver = null;
+		this._clearHandlers();
 	}
 }
 
@@ -147,8 +232,15 @@ export class Plugin {
 	loadData = vi.fn().mockResolvedValue({});
 	saveData = vi.fn().mockResolvedValue(undefined);
 	addSettingTab = vi.fn();
-	registerEvent = vi.fn();
-	registerDomEvent = vi.fn();
+	addCommand = vi.fn();
+	registerEvent = vi.fn((eventRef: MockEventRef) => {
+		// Store the event ref for potential cleanup
+		return eventRef;
+	});
+	registerDomEvent = vi.fn((el: any, event: string, handler: Function, options?: any) => {
+		// Store DOM event for testing
+		return { el, event, handler, options };
+	});
 }
 
 // Mock PluginSettingTab
@@ -206,12 +298,11 @@ export class Modal {
 // Mock MarkdownView
 export class MarkdownView {
 	file: TFile | null = null;
-	editor = {
-		getCursor: vi.fn().mockReturnValue({ line: 0, ch: 0 }),
-		getLine: vi.fn().mockReturnValue(''),
-		replaceRange: vi.fn(),
-		setCursor: vi.fn()
-	};
+	editor: Editor;
+
+	constructor() {
+		this.editor = new Editor();
+	}
 }
 
 // Mock Editor
@@ -224,10 +315,133 @@ export class Editor {
 
 // Mock Menu
 export class Menu {
-	addItem = vi.fn().mockReturnThis();
+	private items: { title: string; icon: string; callback: () => void }[] = [];
+
+	addItem(callback: (item: MenuItem) => void): this {
+		const item = new MenuItem();
+		callback(item);
+		this.items.push({
+			title: item._title,
+			icon: item._icon,
+			callback: item._callback
+		});
+		return this;
+	}
+
+	// Test helpers
+	_getItems(): { title: string; icon: string; callback: () => void }[] {
+		return this.items;
+	}
+
+	_findItem(title: string): { title: string; icon: string; callback: () => void } | undefined {
+		return this.items.find(item => item.title === title);
+	}
+
+	_clear(): void {
+		this.items = [];
+	}
 }
 
-// Mock Notice
+// Mock MenuItem
+export class MenuItem {
+	_title: string = '';
+	_icon: string = '';
+	_callback: () => void = () => {};
+
+	setTitle(title: string): this {
+		this._title = title;
+		return this;
+	}
+
+	setIcon(icon: string): this {
+		this._icon = icon;
+		return this;
+	}
+
+	onClick(callback: () => void): this {
+		this._callback = callback;
+		return this;
+	}
+}
+
+// Mock Notice with call tracking
+export const noticeHistory: { message: string; timeout?: number }[] = [];
+
 export class Notice {
-	constructor(message: string, timeout?: number) {}
+	message: string;
+	timeout: number | undefined;
+
+	constructor(message: string, timeout?: number) {
+		this.message = message;
+		this.timeout = timeout;
+		noticeHistory.push({ message, timeout });
+	}
+
+	static _clearHistory(): void {
+		noticeHistory.length = 0;
+	}
+
+	static _getHistory(): { message: string; timeout?: number }[] {
+		return noticeHistory;
+	}
+}
+
+// Helper to create mock ClipboardEvent
+export function createMockClipboardEvent(options: {
+	items?: { type: string; kind: string; getAsFile: () => File | null }[];
+	files?: File[];
+}): ClipboardEvent {
+	const clipboardData = {
+		items: options.items || [],
+		files: options.files || []
+	} as unknown as DataTransfer;
+
+	return {
+		clipboardData,
+		preventDefault: vi.fn(),
+		stopPropagation: vi.fn()
+	} as unknown as ClipboardEvent;
+}
+
+// Helper to create mock DragEvent
+export function createMockDragEvent(options: {
+	files?: File[];
+	defaultPrevented?: boolean;
+}): DragEvent {
+	const dataTransfer = {
+		files: options.files || []
+	} as unknown as DataTransfer;
+
+	return {
+		dataTransfer,
+		defaultPrevented: options.defaultPrevented || false,
+		preventDefault: vi.fn(),
+		stopPropagation: vi.fn()
+	} as unknown as DragEvent;
+}
+
+// Helper to create mock MouseEvent
+export function createMockMouseEvent(options: {
+	target?: HTMLElement;
+}): MouseEvent {
+	return {
+		target: options.target || document.createElement('div'),
+		preventDefault: vi.fn(),
+		stopPropagation: vi.fn()
+	} as unknown as MouseEvent;
+}
+
+// Helper to create mock File with arrayBuffer method
+export function createMockFile(name: string, type: string, content: ArrayBuffer = new ArrayBuffer(10)): File {
+	const file = new File([content], name, { type });
+	// Add arrayBuffer method that returns the content
+	(file as any).arrayBuffer = async () => content;
+	return file;
+}
+
+// Helper to create mock Image element
+export function createMockImageElement(src: string): HTMLImageElement {
+	const img = document.createElement('img');
+	img.setAttribute('src', src);
+	return img;
 }

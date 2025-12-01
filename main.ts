@@ -1,4 +1,4 @@
-import { Plugin, TFile, MarkdownView, Notice, Menu, Editor } from 'obsidian';
+import { Plugin, TFile, MarkdownView, Notice, Menu, Editor, TAbstractFile } from 'obsidian';
 import { SmartImageRenamerSettings, DEFAULT_SETTINGS } from './src/types/settings';
 import { FileService, ImageProcessor, BulkRenameService } from './src/services';
 import { SmartImageRenamerSettingTab, RenameImageModal, BulkRenameModal } from './src/ui';
@@ -6,7 +6,8 @@ import {
 	sanitizeFilename,
 	isImageFile,
 	getImageLinkAtCursor,
-	extractImagePathFromSrc
+	extractImagePathFromSrc,
+	removeNoteSuffixes
 } from './src/utils';
 import { BulkRenameScope } from './src/types/bulk-rename';
 
@@ -16,6 +17,12 @@ export default class SmartImageRenamer extends Plugin {
 	private imageProcessor: ImageProcessor;
 	private bulkRenameService: BulkRenameService;
 	private pendingImageFile: TFile | undefined;
+	// Track files we're processing to avoid double-renaming
+	private processingFiles: Set<string> = new Set();
+	// Flag to skip file creation events during startup
+	private isStartupComplete: boolean = false;
+	// Flag to force rename (skip generic name check) - set during Excalidraw drops
+	private forceRenameNext: boolean = false;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -56,6 +63,10 @@ export default class SmartImageRenamer extends Plugin {
 		);
 
 		this.registerEvent(
+			this.app.workspace.on('editor-drop', this.handleDrop.bind(this))
+		);
+
+		this.registerEvent(
 			this.app.workspace.on('editor-menu', this.handleEditorMenu.bind(this))
 		);
 
@@ -66,6 +77,26 @@ export default class SmartImageRenamer extends Plugin {
 			this.handleImageContextMenu.bind(this),
 			true
 		);
+
+		// Global drop handler - capture phase to intercept before Excalidraw
+		this.registerDomEvent(
+			document,
+			'drop',
+			this.handleGlobalDrop.bind(this),
+			true
+		);
+
+		// Monitor file creation for auto-rename (drag & drop, Excalidraw, etc.)
+		this.registerEvent(
+			this.app.vault.on('create', this.handleFileCreate.bind(this))
+		);
+
+		// Mark startup as complete after a delay to avoid processing existing files
+		// during vault indexing
+		setTimeout(() => {
+			this.isStartupComplete = true;
+			console.log('[Smart Image Renamer] Startup complete, now monitoring file creation');
+		}, 3000);
 	}
 
 	onunload(): void {
@@ -203,11 +234,208 @@ export default class SmartImageRenamer extends Plugin {
 
 		try {
 			const result = await this.imageProcessor.processImage(imageFile, activeFile);
+			// Mark this file as processed to avoid double-renaming
+			this.processingFiles.add(result.fileName);
+			setTimeout(() => this.processingFiles.delete(result.fileName), 1000);
+
 			this.imageProcessor.insertMarkdownLink(markdownView.editor, result.markdownLink);
 			new Notice(`Image saved as ${result.fileName}`);
 		} catch (error) {
 			console.error('Smart Image Renamer error:', error);
 			new Notice(`Failed to save image: ${error}`);
 		}
+	}
+
+	private async handleGlobalDrop(evt: DragEvent): Promise<void> {
+		const dataTransfer = evt.dataTransfer;
+		if (!dataTransfer) return;
+
+		// Get image files from the drop
+		const files = Array.from(dataTransfer.files);
+		const imageFiles = files.filter(file => file.type.startsWith('image/'));
+
+		if (imageFiles.length === 0) return;
+
+		console.log('[Smart Image Renamer] Global drop detected with', imageFiles.length, 'images');
+
+		// Get the active file (could be markdown or excalidraw)
+		const activeFile = this.app.workspace.getActiveFile();
+		console.log('[Smart Image Renamer] Active file:', activeFile?.path);
+
+		if (!activeFile) {
+			console.log('[Smart Image Renamer] No active file, letting default handler proceed');
+			return;
+		}
+
+		// Check if we're in an Excalidraw view
+		const isExcalidraw = activeFile.extension === 'md' &&
+			activeFile.basename.toLowerCase().endsWith('.excalidraw');
+		console.log('[Smart Image Renamer] Is Excalidraw:', isExcalidraw);
+
+		// For Excalidraw, set flag to force rename (skip generic name check)
+		// then vault.on('create') will rename it
+		if (isExcalidraw) {
+			console.log('[Smart Image Renamer] Excalidraw detected, will rename via vault.on(create)');
+			this.forceRenameNext = true;
+			// Reset flag after a delay in case the drop doesn't result in a file creation
+			setTimeout(() => { this.forceRenameNext = false; }, 5000);
+			return;
+		}
+
+		// For regular markdown editors, editor-drop will handle it
+		// This is a fallback for other cases
+	}
+
+	private async handleDrop(
+		evt: DragEvent,
+		editor: Editor,
+		info: MarkdownView | { file: TFile | null }
+	): Promise<void> {
+		// Check if already handled
+		if (evt.defaultPrevented) return;
+
+		const dataTransfer = evt.dataTransfer;
+		if (!dataTransfer) return;
+
+		// Get image files from the drop
+		const files = Array.from(dataTransfer.files);
+		const imageFiles = files.filter(file => file.type.startsWith('image/'));
+
+		if (imageFiles.length === 0) return;
+
+		evt.preventDefault();
+
+		const activeFile = info.file;
+		if (!activeFile) {
+			new Notice('No active file found');
+			return;
+		}
+
+		// Process each dropped image
+		for (const imageFile of imageFiles) {
+			try {
+				const result = await this.imageProcessor.processImage(imageFile, activeFile);
+				// Mark this file as processed to avoid double-renaming
+				this.processingFiles.add(result.fileName);
+				setTimeout(() => this.processingFiles.delete(result.fileName), 1000);
+
+				this.imageProcessor.insertMarkdownLink(editor, result.markdownLink);
+				new Notice(`Image saved as ${result.fileName}`);
+			} catch (error) {
+				console.error('Smart Image Renamer error:', error);
+				new Notice(`Failed to save image: ${error}`);
+			}
+		}
+	}
+
+	private async handleFileCreate(file: TAbstractFile): Promise<void> {
+		console.log('[Smart Image Renamer] File created:', file.path, 'startupComplete:', this.isStartupComplete);
+
+		// Skip during startup to avoid processing existing files during vault indexing
+		if (!this.isStartupComplete) {
+			console.log('[Smart Image Renamer] Skipping - startup not complete');
+			return;
+		}
+
+		// Only process if setting is enabled
+		if (!this.settings.autoRenameOnCreate) {
+			console.log('[Smart Image Renamer] Auto-rename disabled in settings');
+			return;
+		}
+
+		// Only process files (not folders)
+		if (!(file instanceof TFile)) {
+			console.log('[Smart Image Renamer] Not a file, skipping');
+			return;
+		}
+
+		// Only process images
+		if (!isImageFile(file.extension)) {
+			console.log('[Smart Image Renamer] Not an image file:', file.extension);
+			return;
+		}
+
+		// Skip if we already processed this file (e.g., from paste handler)
+		if (this.processingFiles.has(file.name)) {
+			console.log('[Smart Image Renamer] Already processing this file');
+			return;
+		}
+
+		// Check if it has a generic name (or if we're forcing rename from Excalidraw drop)
+		const isGeneric = this.bulkRenameService.isGenericName(file.basename);
+		const shouldRename = isGeneric || this.forceRenameNext;
+		console.log('[Smart Image Renamer] Is generic name?', file.basename, isGeneric, 'forceRename:', this.forceRenameNext);
+
+		if (!shouldRename) return;
+
+		// Reset the force flag
+		this.forceRenameNext = false;
+
+		// Small delay to let the file system settle and get the active file
+		await new Promise(resolve => setTimeout(resolve, 100));
+
+		// Get the active file to use for naming
+		const activeFile = this.app.workspace.getActiveFile();
+		console.log('[Smart Image Renamer] Active file:', activeFile?.path);
+		if (!activeFile) return;
+
+		// Generate new name based on active file
+		const baseName = this.getCleanBaseName(activeFile);
+		console.log('[Smart Image Renamer] Clean base name:', baseName);
+		const sanitized = sanitizeFilename(baseName, this.settings.aggressiveSanitization);
+		console.log('[Smart Image Renamer] Sanitized name:', sanitized);
+
+		if (!sanitized) {
+			console.log('[Smart Image Renamer] Sanitized name is empty, skipping');
+			return;
+		}
+
+		try {
+			// Mark as processing
+			this.processingFiles.add(file.path);
+
+			// Get the folder where the file currently is
+			const folderPath = file.parent?.path || '';
+
+			// Get available path with proper suffix (sequential or timestamp)
+			const newPath = await this.fileService.getAvailablePath(
+				folderPath,
+				sanitized,
+				file.extension
+			);
+
+			// Extract just the filename for the rename
+			const newFileName = newPath.split('/').pop() || `${sanitized}.${file.extension}`;
+			const newBaseName = newFileName.replace(`.${file.extension}`, '');
+
+			console.log('[Smart Image Renamer] Renaming to:', newBaseName);
+
+			await this.fileService.renameFile(file, newBaseName);
+			new Notice(`Auto-renamed to ${newFileName}`);
+			console.log('[Smart Image Renamer] Renamed successfully to:', newFileName);
+		} catch (error) {
+			console.error('[Smart Image Renamer] Auto-rename error:', error);
+
+			// Handle "file already exists" error
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			if (errorMessage.includes('already exists')) {
+				new Notice(
+					`Could not auto-rename "${file.name}" - a file with that name already exists. ` +
+					`Right-click on the image to rename it manually.`,
+					5000
+				);
+			} else {
+				new Notice(`Failed to auto-rename: ${errorMessage}`);
+			}
+		} finally {
+			this.processingFiles.delete(file.path);
+		}
+	}
+
+	/**
+	 * Get clean base name from a file, removing configured suffixes
+	 */
+	private getCleanBaseName(file: TFile): string {
+		return removeNoteSuffixes(file.basename, this.settings.suffixesToRemove);
 	}
 }

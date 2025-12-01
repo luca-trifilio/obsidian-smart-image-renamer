@@ -397,5 +397,94 @@ describe('BulkRenameService', () => {
 
 			expect(app.fileManager.renameFile).toHaveBeenCalledWith(file, 'new 1.png');
 		});
+
+		it('should find available path with folder when target exists', async () => {
+			const file = new TFile('folder/old.png');
+			file.parent = { path: 'folder', name: 'folder' } as any;
+			const existing = new TFile('folder/new.png');
+			const existing2 = new TFile('folder/new 1.png');
+			(app.vault as Vault)._addFile(file);
+			(app.vault as Vault)._addFile(existing);
+			(app.vault as Vault)._addFile(existing2);
+
+			const items = [
+				{
+					file,
+					currentName: 'old',
+					newName: 'new',
+					sourceNote: null,
+					selected: true,
+					isGeneric: true
+				}
+			];
+
+			await service.executeBulkRename(items);
+
+			// Should find next available: new 2.png
+			expect(app.fileManager.renameFile).toHaveBeenCalledWith(file, 'folder/new 2.png');
+		});
+
+		it('should handle rename errors and track them in result', async () => {
+			const file = new TFile('old.png');
+			(app.vault as Vault)._addFile(file);
+
+			// Make renameFile throw an error
+			app.fileManager.renameFile.mockRejectedValueOnce(new Error('Permission denied'));
+
+			const items = [
+				{
+					file,
+					currentName: 'old',
+					newName: 'new',
+					sourceNote: null,
+					selected: true,
+					isGeneric: true
+				}
+			];
+
+			const result = await service.executeBulkRename(items);
+
+			expect(result.success).toBe(0);
+			expect(result.failed).toBe(1);
+			expect(result.errors.length).toBe(1);
+			expect(result.errors[0]).toContain('old');
+			expect(result.errors[0]).toContain('Permission denied');
+		});
+
+		it('should continue with other items after an error', async () => {
+			const file1 = new TFile('old1.png');
+			const file2 = new TFile('old2.png');
+			(app.vault as Vault)._addFile(file1);
+			(app.vault as Vault)._addFile(file2);
+
+			// First rename fails, second succeeds
+			app.fileManager.renameFile
+				.mockRejectedValueOnce(new Error('Error'))
+				.mockResolvedValueOnce(undefined);
+
+			const items = [
+				{
+					file: file1,
+					currentName: 'old1',
+					newName: 'new1',
+					sourceNote: null,
+					selected: true,
+					isGeneric: true
+				},
+				{
+					file: file2,
+					currentName: 'old2',
+					newName: 'new2',
+					sourceNote: null,
+					selected: true,
+					isGeneric: true
+				}
+			];
+
+			const result = await service.executeBulkRename(items);
+
+			expect(result.success).toBe(1);
+			expect(result.failed).toBe(1);
+		});
 	});
 });

@@ -1,4 +1,4 @@
-export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] as const;
+export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif', 'tiff', 'tif', 'ico'] as const;
 
 export const MIME_TO_EXTENSION: Record<string, string> = {
 	'image/png': 'png',
@@ -7,6 +7,10 @@ export const MIME_TO_EXTENSION: Record<string, string> = {
 	'image/webp': 'webp',
 	'image/bmp': 'bmp',
 	'image/svg+xml': 'svg',
+	'image/avif': 'avif',
+	'image/tiff': 'tiff',
+	'image/x-icon': 'ico',
+	'image/vnd.microsoft.icon': 'ico',
 };
 
 export const TIMESTAMP_PRESETS = [
@@ -15,4 +19,4 @@ export const TIMESTAMP_PRESETS = [
 	{ value: 'custom', label: 'Custom' }
 ] as const;
 
-export const IMAGE_LINK_REGEX = /!\[\[([^\]]+\.(png|jpg|jpeg|gif|webp|bmp|svg))\]\]/gi;
+export const IMAGE_LINK_REGEX = /!\[\[([^\]]+\.(png|jpg|jpeg|gif|webp|bmp|svg|avif|tiff|tif|ico))\]\]/gi;

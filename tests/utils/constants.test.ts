@@ -15,10 +15,14 @@ describe('IMAGE_EXTENSIONS', () => {
 		expect(IMAGE_EXTENSIONS).toContain('webp');
 		expect(IMAGE_EXTENSIONS).toContain('bmp');
 		expect(IMAGE_EXTENSIONS).toContain('svg');
+		expect(IMAGE_EXTENSIONS).toContain('avif');
+		expect(IMAGE_EXTENSIONS).toContain('tiff');
+		expect(IMAGE_EXTENSIONS).toContain('tif');
+		expect(IMAGE_EXTENSIONS).toContain('ico');
 	});
 
-	it('should have 7 extensions', () => {
-		expect(IMAGE_EXTENSIONS.length).toBe(7);
+	it('should have 11 extensions', () => {
+		expect(IMAGE_EXTENSIONS.length).toBe(11);
 	});
 });
 
@@ -30,10 +34,14 @@ describe('MIME_TO_EXTENSION', () => {
 		expect(MIME_TO_EXTENSION['image/webp']).toBe('webp');
 		expect(MIME_TO_EXTENSION['image/bmp']).toBe('bmp');
 		expect(MIME_TO_EXTENSION['image/svg+xml']).toBe('svg');
+		expect(MIME_TO_EXTENSION['image/avif']).toBe('avif');
+		expect(MIME_TO_EXTENSION['image/tiff']).toBe('tiff');
+		expect(MIME_TO_EXTENSION['image/x-icon']).toBe('ico');
+		expect(MIME_TO_EXTENSION['image/vnd.microsoft.icon']).toBe('ico');
 	});
 
-	it('should have 6 MIME type mappings', () => {
-		expect(Object.keys(MIME_TO_EXTENSION).length).toBe(6);
+	it('should have 10 MIME type mappings', () => {
+		expect(Object.keys(MIME_TO_EXTENSION).length).toBe(10);
 	});
 });
 

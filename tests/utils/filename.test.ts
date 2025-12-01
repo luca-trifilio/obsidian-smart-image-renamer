@@ -5,7 +5,8 @@ import {
 	isImageFile,
 	getExtensionFromMime,
 	getImageLinkAtCursor,
-	extractImagePathFromSrc
+	extractImagePathFromSrc,
+	removeNoteSuffixes
 } from '../../src/utils/filename';
 
 describe('sanitizeFilename', () => {
@@ -132,6 +133,10 @@ describe('isImageFile', () => {
 		expect(isImageFile('webp')).toBe(true);
 		expect(isImageFile('bmp')).toBe(true);
 		expect(isImageFile('svg')).toBe(true);
+		expect(isImageFile('avif')).toBe(true);
+		expect(isImageFile('tiff')).toBe(true);
+		expect(isImageFile('tif')).toBe(true);
+		expect(isImageFile('ico')).toBe(true);
 	});
 
 	it('should be case insensitive', () => {
@@ -160,6 +165,10 @@ describe('getExtensionFromMime', () => {
 		expect(getExtensionFromMime('image/webp')).toBe('webp');
 		expect(getExtensionFromMime('image/bmp')).toBe('bmp');
 		expect(getExtensionFromMime('image/svg+xml')).toBe('svg');
+		expect(getExtensionFromMime('image/avif')).toBe('avif');
+		expect(getExtensionFromMime('image/tiff')).toBe('tiff');
+		expect(getExtensionFromMime('image/x-icon')).toBe('ico');
+		expect(getExtensionFromMime('image/vnd.microsoft.icon')).toBe('ico');
 	});
 
 	it('should return png as default for unknown MIME types', () => {
@@ -194,6 +203,10 @@ describe('getImageLinkAtCursor', () => {
 		expect(getImageLinkAtCursor('![[test.webp]]', 5)).toBe('test.webp');
 		expect(getImageLinkAtCursor('![[test.bmp]]', 5)).toBe('test.bmp');
 		expect(getImageLinkAtCursor('![[test.svg]]', 5)).toBe('test.svg');
+		expect(getImageLinkAtCursor('![[test.avif]]', 5)).toBe('test.avif');
+		expect(getImageLinkAtCursor('![[test.tiff]]', 5)).toBe('test.tiff');
+		expect(getImageLinkAtCursor('![[test.tif]]', 5)).toBe('test.tif');
+		expect(getImageLinkAtCursor('![[test.ico]]', 5)).toBe('test.ico');
 	});
 
 	it('should return null for non-image links', () => {
@@ -239,5 +252,68 @@ describe('extractImagePathFromSrc', () => {
 
 	it('should handle complex paths', () => {
 		expect(extractImagePathFromSrc('app://obsidian/vault%20name/attachments/My%20Image.png?v=1')).toBe('My Image.png');
+	});
+});
+
+describe('removeNoteSuffixes', () => {
+	const defaultSuffixes = ['.excalidraw', '.canvas'];
+
+	describe('with default suffixes', () => {
+		it('should remove .excalidraw suffix', () => {
+			expect(removeNoteSuffixes('MyDrawing.excalidraw', defaultSuffixes)).toBe('MyDrawing');
+		});
+
+		it('should remove .canvas suffix', () => {
+			expect(removeNoteSuffixes('MyCanvas.canvas', defaultSuffixes)).toBe('MyCanvas');
+		});
+
+		it('should be case insensitive', () => {
+			expect(removeNoteSuffixes('MyDrawing.Excalidraw', defaultSuffixes)).toBe('MyDrawing');
+			expect(removeNoteSuffixes('MyDrawing.EXCALIDRAW', defaultSuffixes)).toBe('MyDrawing');
+			expect(removeNoteSuffixes('MyCanvas.CANVAS', defaultSuffixes)).toBe('MyCanvas');
+		});
+
+		it('should not modify names without matching suffix', () => {
+			expect(removeNoteSuffixes('MyNote', defaultSuffixes)).toBe('MyNote');
+			expect(removeNoteSuffixes('My.Note.With.Dots', defaultSuffixes)).toBe('My.Note.With.Dots');
+		});
+
+		it('should only remove suffix at the end', () => {
+			expect(removeNoteSuffixes('excalidraw.something', defaultSuffixes)).toBe('excalidraw.something');
+		});
+
+		it('should only remove one suffix (first match)', () => {
+			expect(removeNoteSuffixes('MyFile.canvas.excalidraw', defaultSuffixes)).toBe('MyFile.canvas');
+		});
+	});
+
+	describe('with empty suffixes', () => {
+		it('should not modify any names', () => {
+			expect(removeNoteSuffixes('MyDrawing.excalidraw', [])).toBe('MyDrawing.excalidraw');
+			expect(removeNoteSuffixes('MyNote', [])).toBe('MyNote');
+		});
+	});
+
+	describe('with custom suffixes', () => {
+		it('should remove custom suffixes', () => {
+			const customSuffixes = ['.template', '.draft'];
+			expect(removeNoteSuffixes('MyNote.template', customSuffixes)).toBe('MyNote');
+			expect(removeNoteSuffixes('MyNote.draft', customSuffixes)).toBe('MyNote');
+		});
+	});
+
+	describe('edge cases', () => {
+		it('should handle empty basename', () => {
+			expect(removeNoteSuffixes('', defaultSuffixes)).toBe('');
+		});
+
+		it('should handle basename that is exactly the suffix', () => {
+			expect(removeNoteSuffixes('.excalidraw', defaultSuffixes)).toBe('');
+		});
+
+		it('should preserve spaces and special characters', () => {
+			expect(removeNoteSuffixes('My Drawing 2024.excalidraw', defaultSuffixes)).toBe('My Drawing 2024');
+			expect(removeNoteSuffixes('Café Diagram.canvas', defaultSuffixes)).toBe('Café Diagram');
+		});
 	});
 });

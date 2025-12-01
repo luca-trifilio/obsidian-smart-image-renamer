@@ -89,3 +89,24 @@ export function extractImagePathFromSrc(src: string): string | null {
 
 	return fileName.split('?')[0];
 }
+
+/**
+ * Remove configured suffixes from a base name.
+ * Used to clean up note names before using them for image naming.
+ *
+ * @param basename - The base name to clean (without extension)
+ * @param suffixes - Array of suffixes to remove (e.g., ['.excalidraw', '.canvas'])
+ * @returns The cleaned base name
+ */
+export function removeNoteSuffixes(basename: string, suffixes: string[]): string {
+	let name = basename;
+
+	for (const suffix of suffixes) {
+		if (name.toLowerCase().endsWith(suffix.toLowerCase())) {
+			name = name.slice(0, -suffix.length);
+			break;
+		}
+	}
+
+	return name;
+}

@@ -10,10 +10,23 @@ export interface SmartImageRenamerSettings {
 	 * When disabled, only invalid filesystem characters are removed.
 	 */
 	aggressiveSanitization: boolean;
+	/**
+	 * When enabled, automatically renames images created from any source
+	 * (drag & drop, Excalidraw, other plugins) if they have generic names.
+	 */
+	autoRenameOnCreate: boolean;
+	/**
+	 * Suffixes to remove from note names when generating image names.
+	 * Useful for plugins like Excalidraw that add their own suffixes.
+	 * Example: [".excalidraw"] removes ".excalidraw" from "MyDrawing.excalidraw.md"
+	 */
+	suffixesToRemove: string[];
 }
 
 export const DEFAULT_SETTINGS: SmartImageRenamerSettings = {
 	suffixMode: 'sequential',
 	timestampFormat: 'YYYYMMDD-HHmmss',
-	aggressiveSanitization: false
+	aggressiveSanitization: false,
+	autoRenameOnCreate: true,
+	suffixesToRemove: ['.excalidraw', '.canvas']
 };
