@@ -2,22 +2,38 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, labeled, unlabeled, synchronize]
     branches: [main]
 
 jobs:
+  check-release-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for release label
+        run: |
+          labels='${{ toJSON(github.event.pull_request.labels.*.name) }}'
+          if echo "$labels" | grep -qE '"release:(patch|minor|major)"'; then
+            echo "✅ Release label found"
+          else
+            echo "❌ Missing release label! Add: release:patch, release:minor, or release:major"
+            exit 1
+          fi
+
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install dependencies
         run: npm install
+
+      - name: Run tests
+        run: npm test
 
       - name: Build
         run: npm run build
