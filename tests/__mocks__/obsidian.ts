@@ -61,6 +61,10 @@ export class Vault {
 		return Array.from(this.files.values());
 	}
 
+	getMarkdownFiles(): TFile[] {
+		return Array.from(this.files.values()).filter(f => f.extension === 'md');
+	}
+
 	createBinary = vi.fn().mockResolvedValue(undefined);
 	createFolder = vi.fn().mockResolvedValue(undefined);
 
@@ -89,10 +93,40 @@ export class Workspace {
 	on = vi.fn();
 }
 
+// Mock CachedMetadata
+export interface CachedMetadata {
+	embeds?: { link: string; displayText: string }[];
+	links?: { link: string; displayText: string }[];
+}
+
 // Mock MetadataCache
 export class MetadataCache {
+	private fileCache: Map<string, CachedMetadata> = new Map();
+	private linkResolver: ((linkpath: string, sourcePath: string) => TFile | null) | null = null;
+
 	getFirstLinkpathDest(linkpath: string, sourcePath: string): TFile | null {
+		if (this.linkResolver) {
+			return this.linkResolver(linkpath, sourcePath);
+		}
 		return null;
+	}
+
+	getFileCache(file: TFile): CachedMetadata | null {
+		return this.fileCache.get(file.path) || null;
+	}
+
+	// Test helpers
+	_setFileCache(filePath: string, cache: CachedMetadata): void {
+		this.fileCache.set(filePath, cache);
+	}
+
+	_setLinkResolver(resolver: (linkpath: string, sourcePath: string) => TFile | null): void {
+		this.linkResolver = resolver;
+	}
+
+	_clear(): void {
+		this.fileCache.clear();
+		this.linkResolver = null;
 	}
 }
 
