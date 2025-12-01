@@ -76,6 +76,14 @@ export default class SmartImageRenamer extends Plugin {
 			true
 		);
 
+		// Global drop handler - capture phase to intercept before Excalidraw
+		this.registerDomEvent(
+			document,
+			'drop',
+			this.handleGlobalDrop.bind(this),
+			true
+		);
+
 		// Monitor file creation for auto-rename (drag & drop, Excalidraw, etc.)
 		this.registerEvent(
 			this.app.vault.on('create', this.handleFileCreate.bind(this))
@@ -236,6 +244,43 @@ export default class SmartImageRenamer extends Plugin {
 		}
 	}
 
+	private async handleGlobalDrop(evt: DragEvent): Promise<void> {
+		const dataTransfer = evt.dataTransfer;
+		if (!dataTransfer) return;
+
+		// Get image files from the drop
+		const files = Array.from(dataTransfer.files);
+		const imageFiles = files.filter(file => file.type.startsWith('image/'));
+
+		if (imageFiles.length === 0) return;
+
+		console.log('[Smart Image Renamer] Global drop detected with', imageFiles.length, 'images');
+
+		// Get the active file (could be markdown or excalidraw)
+		const activeFile = this.app.workspace.getActiveFile();
+		console.log('[Smart Image Renamer] Active file:', activeFile?.path);
+
+		if (!activeFile) {
+			console.log('[Smart Image Renamer] No active file, letting default handler proceed');
+			return;
+		}
+
+		// Check if we're in an Excalidraw view
+		const isExcalidraw = activeFile.extension === 'md' &&
+			activeFile.basename.toLowerCase().endsWith('.excalidraw');
+		console.log('[Smart Image Renamer] Is Excalidraw:', isExcalidraw);
+
+		// For Excalidraw, we'll let the default handler save the file,
+		// then vault.on('create') will rename it
+		if (isExcalidraw) {
+			console.log('[Smart Image Renamer] Excalidraw detected, will rename via vault.on(create)');
+			return;
+		}
+
+		// For regular markdown editors, editor-drop will handle it
+		// This is a fallback for other cases
+	}
+
 	private async handleDrop(
 		evt: DragEvent,
 		editor: Editor,
@@ -279,12 +324,13 @@ export default class SmartImageRenamer extends Plugin {
 	}
 
 	private async handleFileCreate(file: TAbstractFile): Promise<void> {
+		console.log('[Smart Image Renamer] File created:', file.path, 'startupComplete:', this.isStartupComplete);
+
 		// Skip during startup to avoid processing existing files during vault indexing
 		if (!this.isStartupComplete) {
+			console.log('[Smart Image Renamer] Skipping - startup not complete');
 			return;
 		}
-
-		console.log('[Smart Image Renamer] File created:', file.path);
 
 		// Only process if setting is enabled
 		if (!this.settings.autoRenameOnCreate) {
@@ -337,9 +383,24 @@ export default class SmartImageRenamer extends Plugin {
 		try {
 			// Mark as processing
 			this.processingFiles.add(file.path);
-			console.log('[Smart Image Renamer] Renaming to:', sanitized);
 
-			const newFileName = await this.fileService.renameFile(file, sanitized);
+			// Get the folder where the file currently is
+			const folderPath = file.parent?.path || '';
+
+			// Get available path with proper suffix (sequential or timestamp)
+			const newPath = await this.fileService.getAvailablePath(
+				folderPath,
+				sanitized,
+				file.extension
+			);
+
+			// Extract just the filename for the rename
+			const newFileName = newPath.split('/').pop() || `${sanitized}.${file.extension}`;
+			const newBaseName = newFileName.replace(`.${file.extension}`, '');
+
+			console.log('[Smart Image Renamer] Renaming to:', newBaseName);
+
+			await this.fileService.renameFile(file, newBaseName);
 			new Notice(`Auto-renamed to ${newFileName}`);
 			console.log('[Smart Image Renamer] Renamed successfully to:', newFileName);
 		} catch (error) {
