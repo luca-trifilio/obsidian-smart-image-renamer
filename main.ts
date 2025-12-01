@@ -19,6 +19,8 @@ export default class SmartImageRenamer extends Plugin {
 	private pendingImageFile: TFile | undefined;
 	// Track files we're processing to avoid double-renaming
 	private processingFiles: Set<string> = new Set();
+	// Flag to skip file creation events during startup
+	private isStartupComplete: boolean = false;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -74,6 +76,13 @@ export default class SmartImageRenamer extends Plugin {
 		this.registerEvent(
 			this.app.vault.on('create', this.handleFileCreate.bind(this))
 		);
+
+		// Mark startup as complete after a delay to avoid processing existing files
+		// during vault indexing
+		setTimeout(() => {
+			this.isStartupComplete = true;
+			console.log('[Smart Image Renamer] Startup complete, now monitoring file creation');
+		}, 3000);
 	}
 
 	onunload(): void {
@@ -224,6 +233,11 @@ export default class SmartImageRenamer extends Plugin {
 	}
 
 	private async handleFileCreate(file: TAbstractFile): Promise<void> {
+		// Skip during startup to avoid processing existing files during vault indexing
+		if (!this.isStartupComplete) {
+			return;
+		}
+
 		console.log('[Smart Image Renamer] File created:', file.path);
 
 		// Only process if setting is enabled
@@ -284,6 +298,18 @@ export default class SmartImageRenamer extends Plugin {
 			console.log('[Smart Image Renamer] Renamed successfully to:', newFileName);
 		} catch (error) {
 			console.error('[Smart Image Renamer] Auto-rename error:', error);
+
+			// Handle "file already exists" error
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			if (errorMessage.includes('already exists')) {
+				new Notice(
+					`Could not auto-rename "${file.name}" - a file with that name already exists. ` +
+					`Right-click on the image to rename it manually.`,
+					5000
+				);
+			} else {
+				new Notice(`Failed to auto-rename: ${errorMessage}`);
+			}
 		} finally {
 			this.processingFiles.delete(file.path);
 		}
