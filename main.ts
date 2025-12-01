@@ -6,7 +6,8 @@ import {
 	sanitizeFilename,
 	isImageFile,
 	getImageLinkAtCursor,
-	extractImagePathFromSrc
+	extractImagePathFromSrc,
+	removeNoteSuffixes
 } from './src/utils';
 import { BulkRenameScope } from './src/types/bulk-rename';
 
@@ -268,15 +269,6 @@ export default class SmartImageRenamer extends Plugin {
 	 * Get clean base name from a file, removing configured suffixes
 	 */
 	private getCleanBaseName(file: TFile): string {
-		let name = file.basename;
-
-		for (const suffix of this.settings.suffixesToRemove) {
-			if (name.toLowerCase().endsWith(suffix.toLowerCase())) {
-				name = name.slice(0, -suffix.length);
-				break;
-			}
-		}
-
-		return name;
+		return removeNoteSuffixes(file.basename, this.settings.suffixesToRemove);
 	}
 }
