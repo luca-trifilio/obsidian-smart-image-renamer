@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { App, TFile, TFolder, Editor } from '../__mocks__/obsidian';
+import { App, TFile, TFolder, Editor, createMockFile } from '../__mocks__/obsidian';
 import { FileService } from '../../src/services/file-service';
 import { ImageProcessor } from '../../src/services/image-processor';
 import { SmartImageRenamerSettings, DEFAULT_SETTINGS } from '../../src/types/settings';
@@ -85,7 +85,7 @@ describe('ImageProcessor', () => {
 		});
 
 		it('should process image and return correct result', async () => {
-			const imageFile = new File(['test content'], 'clipboard.png', { type: 'image/png' });
+			const imageFile = createMockFile('clipboard.png', 'image/png');
 			const activeFile = new TFile('notes/My Note.md');
 
 			const result = await imageProcessor.processImage(imageFile, activeFile);
@@ -99,7 +99,7 @@ describe('ImageProcessor', () => {
 
 		it('should use correct extension from MIME type', async () => {
 			vi.spyOn(fileService, 'getAvailablePath').mockResolvedValue('attachments/note 1.jpg');
-			const imageFile = new File(['test'], 'image', { type: 'image/jpeg' });
+			const imageFile = createMockFile('image', 'image/jpeg');
 			const activeFile = new TFile('note.md');
 
 			const result = await imageProcessor.processImage(imageFile, activeFile);
@@ -108,8 +108,8 @@ describe('ImageProcessor', () => {
 		});
 
 		it('should call createBinaryFile with image data', async () => {
-			const imageData = new Uint8Array([1, 2, 3, 4]);
-			const imageFile = new File([imageData], 'test.png', { type: 'image/png' });
+			const imageData = new ArrayBuffer(4);
+			const imageFile = createMockFile('test.png', 'image/png', imageData);
 			const activeFile = new TFile('note.md');
 
 			await imageProcessor.processImage(imageFile, activeFile);
@@ -121,7 +121,7 @@ describe('ImageProcessor', () => {
 		});
 
 		it('should sanitize filename based on settings', async () => {
-			const imageFile = new File(['test'], 'test.png', { type: 'image/png' });
+			const imageFile = createMockFile('test.png', 'image/png');
 			const activeFile = new TFile('Caffè & Città.md');
 
 			// Update settings to use aggressive sanitization

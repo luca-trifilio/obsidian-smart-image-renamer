@@ -144,6 +144,28 @@ describe('FileService', () => {
 
 				expect(path).toBe('folder/note 20251201-143045-1.png');
 			});
+
+			it('should increment sequential suffix when multiple timestamp collisions', async () => {
+				// Original timestamp file
+				(app.vault as Vault)._addFile(new TFile('folder/note 20251201-143045.png'));
+				// First collision
+				(app.vault as Vault)._addFile(new TFile('folder/note 20251201-143045-1.png'));
+				// Second collision
+				(app.vault as Vault)._addFile(new TFile('folder/note 20251201-143045-2.png'));
+
+				const path = await fileService.getAvailablePath('folder', 'note', 'png');
+
+				expect(path).toBe('folder/note 20251201-143045-3.png');
+			});
+
+			it('should handle timestamp collision without folder', async () => {
+				(app.vault as Vault)._addFile(new TFile('note 20251201-143045.png'));
+				(app.vault as Vault)._addFile(new TFile('note 20251201-143045-1.png'));
+
+				const path = await fileService.getAvailablePath('', 'note', 'png');
+
+				expect(path).toBe('note 20251201-143045-2.png');
+			});
 		});
 	});
 
@@ -193,6 +215,44 @@ describe('FileService', () => {
 			const result = fileService.findFileByName('nonexistent.png');
 
 			expect(result).toBeUndefined();
+		});
+	});
+
+	describe('resolveImageLink', () => {
+		it('should delegate to metadataCache.getFirstLinkpathDest', () => {
+			const imageFile = new TFile('attachments/image.png');
+			app.metadataCache._setLinkResolver((linkpath, sourcePath) => {
+				if (linkpath === 'image.png' && sourcePath === 'notes/test.md') {
+					return imageFile;
+				}
+				return null;
+			});
+
+			const result = fileService.resolveImageLink('image.png', 'notes/test.md');
+
+			expect(result).toBe(imageFile);
+		});
+
+		it('should return null when image not found', () => {
+			app.metadataCache._setLinkResolver(() => null);
+
+			const result = fileService.resolveImageLink('missing.png', 'notes/test.md');
+
+			expect(result).toBeNull();
+		});
+
+		it('should handle complex link paths with subfolders', () => {
+			const imageFile = new TFile('attachments/subfolder/deep-image.png');
+			app.metadataCache._setLinkResolver((linkpath, sourcePath) => {
+				if (linkpath === 'subfolder/deep-image.png') {
+					return imageFile;
+				}
+				return null;
+			});
+
+			const result = fileService.resolveImageLink('subfolder/deep-image.png', 'notes/nested/doc.md');
+
+			expect(result).toBe(imageFile);
 		});
 	});
 
