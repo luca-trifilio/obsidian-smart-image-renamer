@@ -48,6 +48,7 @@ export class TFile {
 	basename: string;
 	extension: string;
 	parent: TFolder | null;
+	stat: { size: number; ctime: number; mtime: number };
 
 	constructor(path: string) {
 		this.path = path;
@@ -56,6 +57,7 @@ export class TFile {
 		this.extension = parts.length > 1 ? parts.pop()! : '';
 		this.basename = parts.join('.');
 		this.parent = null;
+		this.stat = { size: 0, ctime: 0, mtime: 0 };
 	}
 }
 
@@ -110,6 +112,7 @@ export class Vault extends MockEventEmitter {
 	createFolder = vi.fn().mockResolvedValue(undefined);
 	read = vi.fn().mockResolvedValue('');
 	cachedRead = vi.fn().mockResolvedValue('');
+	trash = vi.fn().mockResolvedValue(undefined);
 
 	// Test helpers
 	_addFile(file: TFile): void {

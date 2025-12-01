@@ -31,6 +31,8 @@ let bulkRenameModalCalls: any[] = [];
 // Track RenameImageModal calls and callbacks
 let renameImageModalCalls: { file: any; callback: Function }[] = [];
 let lastRenameModalCallback: Function | null = null;
+// Track OrphanedImagesModal calls
+let orphanedImagesModalCalls: any[] = [];
 
 // Mock the UI modules to avoid side effects
 vi.mock('../src/ui', () => ({
@@ -42,6 +44,10 @@ vi.mock('../src/ui', () => ({
 	}),
 	BulkRenameModal: vi.fn().mockImplementation((...args: any[]) => {
 		bulkRenameModalCalls.push(args);
+		return { open: vi.fn() };
+	}),
+	OrphanedImagesModal: vi.fn().mockImplementation((...args: any[]) => {
+		orphanedImagesModalCalls.push(args);
 		return { open: vi.fn() };
 	})
 }));
@@ -56,6 +62,7 @@ describe('SmartImageRenamer', () => {
 		bulkRenameModalCalls = [];
 		renameImageModalCalls = [];
 		lastRenameModalCallback = null;
+		orphanedImagesModalCalls = [];
 
 		plugin = new SmartImageRenamer();
 		// Don't call onload yet - individual tests will do this as needed
@@ -1269,6 +1276,7 @@ describe('SmartImageRenamer', () => {
 				const imageFile = new TFile('attachments/image.png');
 				(plugin.app.workspace as Workspace)._setActiveFile(mdFile);
 				(plugin as any).bulkRenameService.scanImagesInNote = vi.fn().mockReturnValue([{ file: imageFile }]);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([{ file: imageFile, newName: 'test' }]);
 
 				const commands = (plugin.addCommand as any).mock.calls;
 				const noteCommand = commands.find((c: any) => c[0].id === 'bulk-rename-current-note');
@@ -1287,6 +1295,7 @@ describe('SmartImageRenamer', () => {
 				const imageFile = new TFile('attachments/image.png');
 				(plugin.app.workspace as Workspace)._setActiveFile(mdFile);
 				(plugin as any).bulkRenameService.scanImagesInVault = vi.fn().mockReturnValue([{ file: imageFile }]);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([{ file: imageFile, newName: 'test' }]);
 
 				const commands = (plugin.addCommand as any).mock.calls;
 				const vaultCommand = commands.find((c: any) => c[0].id === 'bulk-rename-vault');
@@ -1302,6 +1311,7 @@ describe('SmartImageRenamer', () => {
 				const imageFile = new TFile('attachments/image.png');
 				(plugin.app.workspace as Workspace)._setActiveFile(null);
 				(plugin as any).bulkRenameService.scanImagesInVault = vi.fn().mockReturnValue([{ file: imageFile }]);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([{ file: imageFile, newName: 'test' }]);
 
 				const commands = (plugin.addCommand as any).mock.calls;
 				const vaultCommand = commands.find((c: any) => c[0].id === 'bulk-rename-vault');
@@ -1336,6 +1346,7 @@ describe('SmartImageRenamer', () => {
 				const mdFile = new TFile('notes/test.md');
 				const imageFile = new TFile('attachments/image.png');
 				(plugin as any).bulkRenameService.scanImagesInNote = vi.fn().mockReturnValue([imageFile]);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([{ file: imageFile, newName: 'test' }]);
 
 				(plugin as any).openBulkRenameModal(mdFile, 'note');
 
@@ -1345,10 +1356,134 @@ describe('SmartImageRenamer', () => {
 			it('should open modal when images found in vault', () => {
 				const imageFile = new TFile('attachments/image.png');
 				(plugin as any).bulkRenameService.scanImagesInVault = vi.fn().mockReturnValue([imageFile]);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([{ file: imageFile, newName: 'test' }]);
 
 				(plugin as any).openBulkRenameModal(null, 'vault');
 
 				expect(bulkRenameModalCalls.length).toBeGreaterThan(0);
+			});
+
+			it('should show notice when images exist but none need renaming (vault)', () => {
+				const note = new TFile('My Note.md');
+				// Image already correctly named
+				const imageFile = new TFile('My Note 1.png');
+				const images = [{ file: imageFile, sourceNote: note, isGeneric: false }];
+
+				(plugin as any).bulkRenameService.scanImagesInVault = vi.fn().mockReturnValue(images);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([]);
+
+				const initialCalls = bulkRenameModalCalls.length;
+				(plugin as any).openBulkRenameModal(null, 'vault');
+
+				expect(noticeHistory.some(n => n.message === 'All images are already correctly named!')).toBe(true);
+				expect(bulkRenameModalCalls.length).toBe(initialCalls); // Modal should NOT be opened
+			});
+
+			it('should show notice when images exist but none need renaming (note)', () => {
+				const note = new TFile('My Note.md');
+				// Image already correctly named
+				const imageFile = new TFile('My Note 1.png');
+				const images = [{ file: imageFile, sourceNote: note, isGeneric: false }];
+
+				(plugin as any).bulkRenameService.scanImagesInNote = vi.fn().mockReturnValue(images);
+				(plugin as any).bulkRenameService.generatePreview = vi.fn().mockReturnValue([]);
+
+				const initialCalls = bulkRenameModalCalls.length;
+				(plugin as any).openBulkRenameModal(note, 'note');
+
+				expect(noticeHistory.some(n => n.message === 'All images are already correctly named!')).toBe(true);
+				expect(bulkRenameModalCalls.length).toBe(initialCalls); // Modal should NOT be opened
+			});
+		});
+
+		describe('find-orphaned-images', () => {
+			it('should register find-orphaned-images command', async () => {
+				await plugin.onload();
+
+				const calls = (plugin.addCommand as any).mock.calls;
+				const orphanCommand = calls.find((c: any) => c[0].id === 'find-orphaned-images');
+
+				expect(orphanCommand).toBeDefined();
+				expect(orphanCommand[0].name).toBe('Find orphaned images');
+			});
+
+			it('should execute and open orphaned images modal when orphans found', () => {
+				const orphanFile = new TFile('attachments/orphan.png');
+				(plugin as any).bulkRenameService.findOrphanedImages = vi.fn().mockReturnValue({
+					orphaned: [{ file: orphanFile, size: 1000, selected: true }],
+					totalImages: 5,
+					referencedCount: 4
+				});
+
+				const commands = (plugin.addCommand as any).mock.calls;
+				const orphanCommand = commands.find((c: any) => c[0].id === 'find-orphaned-images');
+
+				// Execute the command
+				orphanCommand[0].callback();
+
+				// Should have opened the modal
+				expect(orphanedImagesModalCalls.length).toBeGreaterThan(0);
+			});
+
+			it('should show notice when no orphaned images found', () => {
+				(plugin as any).bulkRenameService.findOrphanedImages = vi.fn().mockReturnValue({
+					orphaned: [],
+					totalImages: 5,
+					referencedCount: 5
+				});
+
+				const commands = (plugin.addCommand as any).mock.calls;
+				const orphanCommand = commands.find((c: any) => c[0].id === 'find-orphaned-images');
+
+				// Execute the command
+				orphanCommand[0].callback();
+
+				// Should show notice
+				expect(noticeHistory.some(n => n.message.includes('No orphaned images found'))).toBe(true);
+				// Should NOT open modal
+				expect(orphanedImagesModalCalls.length).toBe(0);
+			});
+		});
+
+		describe('openOrphanedImagesModal', () => {
+			it('should show notice when no orphaned images', () => {
+				(plugin as any).bulkRenameService.findOrphanedImages = vi.fn().mockReturnValue({
+					orphaned: [],
+					totalImages: 5,
+					referencedCount: 5
+				});
+
+				(plugin as any).openOrphanedImagesModal();
+
+				expect(noticeHistory.some(n => n.message.includes('No orphaned images found'))).toBe(true);
+			});
+
+			it('should open modal when orphaned images found', () => {
+				const orphanFile = new TFile('attachments/orphan.png');
+				(plugin as any).bulkRenameService.findOrphanedImages = vi.fn().mockReturnValue({
+					orphaned: [{ file: orphanFile, size: 1000, selected: true }],
+					totalImages: 10,
+					referencedCount: 9
+				});
+
+				(plugin as any).openOrphanedImagesModal();
+
+				expect(orphanedImagesModalCalls.length).toBeGreaterThan(0);
+			});
+
+			it('should pass scan result to modal', () => {
+				const orphanFile = new TFile('attachments/orphan.png');
+				const scanResult = {
+					orphaned: [{ file: orphanFile, size: 2048, selected: true }],
+					totalImages: 20,
+					referencedCount: 19
+				};
+				(plugin as any).bulkRenameService.findOrphanedImages = vi.fn().mockReturnValue(scanResult);
+
+				(plugin as any).openOrphanedImagesModal();
+
+				// Third argument should be the scan result
+				expect(orphanedImagesModalCalls[0][2]).toEqual(scanResult);
 			});
 		});
 	});

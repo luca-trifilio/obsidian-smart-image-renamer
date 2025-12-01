@@ -7,6 +7,9 @@ import {
 	BulkRenameMode,
 	ImageFilter,
 	GENERIC_NAME_PATTERNS,
+	OrphanedImage,
+	OrphanScanResult,
+	OrphanActionResult,
 } from '../types/bulk-rename';
 import { isImageFile, sanitizeFilename } from '../utils';
 
@@ -25,6 +28,19 @@ export class BulkRenameService {
 	 */
 	isGenericName(basename: string): boolean {
 		return GENERIC_NAME_PATTERNS.some((pattern) => pattern.test(basename));
+	}
+
+	/**
+	 * Check if a filename already follows the "{baseName} {number}" pattern
+	 */
+	private alreadyFollowsNamingPattern(
+		filename: string,
+		expectedBaseName: string
+	): boolean {
+		// Pattern: "{baseName} {number}" where number is 1 or more digits
+		const escapedBase = expectedBaseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		const pattern = new RegExp(`^${escapedBase} \\d+$`);
+		return pattern.test(filename);
 	}
 
 	/**
@@ -109,6 +125,179 @@ export class BulkRenameService {
 	}
 
 	/**
+	 * Check if an image is referenced anywhere in the vault
+	 * (markdown notes, canvas files, excalidraw files)
+	 */
+	isReferencedAnywhere(imageFile: TFile): boolean {
+		// Check markdown embeds via metadata cache
+		if (this.findFirstReferencingNote(imageFile)) {
+			return true;
+		}
+
+		// Check canvas files (they store file paths in JSON)
+		if (this.isReferencedInCanvas(imageFile)) {
+			return true;
+		}
+
+		// Check Excalidraw files
+		if (this.isReferencedInExcalidraw(imageFile)) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check if image is referenced in any canvas file
+	 */
+	private isReferencedInCanvas(imageFile: TFile): boolean {
+		const canvasFiles = this.app.vault.getFiles().filter(
+			(f) => f.extension === 'canvas'
+		);
+
+		for (const canvas of canvasFiles) {
+			const cache = this.app.metadataCache.getFileCache(canvas);
+			// Canvas files can have embeds in metadata cache
+			if (cache?.embeds) {
+				for (const embed of cache.embeds) {
+					const linkedFile = this.app.metadataCache.getFirstLinkpathDest(
+						embed.link,
+						canvas.path
+					);
+					if (linkedFile?.path === imageFile.path) {
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check if image is referenced in any Excalidraw file
+	 */
+	private isReferencedInExcalidraw(imageFile: TFile): boolean {
+		const excalidrawFiles = this.app.vault.getFiles().filter(
+			(f) => f.name.toLowerCase().includes('.excalidraw')
+		);
+
+		for (const excalidraw of excalidrawFiles) {
+			const cache = this.app.metadataCache.getFileCache(excalidraw);
+			// Excalidraw markdown files have embeds in metadata cache
+			if (cache?.embeds) {
+				for (const embed of cache.embeds) {
+					const linkedFile = this.app.metadataCache.getFirstLinkpathDest(
+						embed.link,
+						excalidraw.path
+					);
+					if (linkedFile?.path === imageFile.path) {
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Find all orphaned images in the vault
+	 */
+	findOrphanedImages(): OrphanScanResult {
+		const allImages = this.app.vault.getFiles().filter(
+			(f) => isImageFile(f.extension)
+		);
+
+		const orphaned: OrphanedImage[] = [];
+
+		for (const image of allImages) {
+			if (!this.isReferencedAnywhere(image)) {
+				orphaned.push({
+					file: image,
+					size: image.stat.size,
+					selected: true, // Default to selected
+				});
+			}
+		}
+
+		return {
+			orphaned,
+			totalImages: allImages.length,
+			referencedCount: allImages.length - orphaned.length,
+		};
+	}
+
+	/**
+	 * Delete selected orphaned images (move to system trash)
+	 */
+	async deleteOrphanedImages(
+		images: OrphanedImage[]
+	): Promise<OrphanActionResult> {
+		const result: OrphanActionResult = {
+			success: 0,
+			failed: 0,
+			errors: [],
+		};
+
+		const selected = images.filter((img) => img.selected);
+
+		for (const img of selected) {
+			try {
+				await this.app.vault.trash(img.file, true); // true = move to system trash
+				result.success++;
+			} catch (error) {
+				result.failed++;
+				result.errors.push(`${img.file.name}: ${error}`);
+			}
+		}
+
+		return result;
+	}
+
+	/**
+	 * Move selected orphaned images to a folder
+	 */
+	async moveOrphanedImages(
+		images: OrphanedImage[],
+		targetFolder: string
+	): Promise<OrphanActionResult> {
+		const result: OrphanActionResult = {
+			success: 0,
+			failed: 0,
+			errors: [],
+		};
+
+		// Ensure target folder exists
+		await this.ensureFolderExists(targetFolder);
+
+		const selected = images.filter((img) => img.selected);
+
+		for (const img of selected) {
+			try {
+				const newPath = `${targetFolder}/${img.file.name}`;
+				await this.app.fileManager.renameFile(img.file, newPath);
+				result.success++;
+			} catch (error) {
+				result.failed++;
+				result.errors.push(`${img.file.name}: ${error}`);
+			}
+		}
+
+		return result;
+	}
+
+	/**
+	 * Ensure a folder exists, creating it if necessary
+	 */
+	private async ensureFolderExists(folderPath: string): Promise<void> {
+		const folder = this.app.vault.getAbstractFileByPath(folderPath);
+		if (!folder) {
+			await this.app.vault.createFolder(folderPath);
+		}
+	}
+
+	/**
 	 * Filter images based on the filter setting
 	 */
 	filterImages(images: ImageInfo[], filter: ImageFilter): ImageInfo[] {
@@ -180,6 +369,17 @@ export class BulkRenameService {
 
 			let baseName = this.generateNewName(image, mode, pattern);
 
+			// In replace mode, skip images that already follow the "{noteName} {number}" pattern
+			if (mode === 'replace') {
+				const sanitizedNoteName = sanitizeFilename(
+					image.sourceNote.basename,
+					this.settings.aggressiveSanitization
+				);
+				if (this.alreadyFollowsNamingPattern(image.file.basename, sanitizedNoteName)) {
+					continue;
+				}
+			}
+
 			// Handle {n} placeholder or add suffix for duplicates
 			if (mode === 'pattern' && pattern?.includes('{n}')) {
 				const count = (usedNames.get(baseName) || 0) + 1;
@@ -194,6 +394,11 @@ export class BulkRenameService {
 				if (count > 1 || mode === 'replace') {
 					baseName = `${baseName} ${count}`;
 				}
+			}
+
+				// Skip if name hasn't changed (already correctly named)
+			if (image.file.basename === baseName) {
+				continue;
 			}
 
 			items.push({

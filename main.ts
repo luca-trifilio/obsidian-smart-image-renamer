@@ -1,7 +1,7 @@
 import { Plugin, TFile, MarkdownView, Notice, Menu, Editor, TAbstractFile } from 'obsidian';
 import { SmartImageRenamerSettings, DEFAULT_SETTINGS } from './src/types/settings';
 import { FileService, ImageProcessor, BulkRenameService } from './src/services';
-import { SmartImageRenamerSettingTab, RenameImageModal, BulkRenameModal } from './src/ui';
+import { SmartImageRenamerSettingTab, RenameImageModal, BulkRenameModal, OrphanedImagesModal } from './src/ui';
 import {
 	sanitizeFilename,
 	isImageFile,
@@ -56,6 +56,12 @@ export default class SmartImageRenamer extends Plugin {
 				const activeFile = this.app.workspace.getActiveFile();
 				this.openBulkRenameModal(activeFile, 'vault');
 			},
+		});
+
+		this.addCommand({
+			id: 'find-orphaned-images',
+			name: 'Find orphaned images',
+			callback: () => this.openOrphanedImagesModal(),
 		});
 
 		this.registerEvent(
@@ -116,16 +122,26 @@ export default class SmartImageRenamer extends Plugin {
 
 	private openBulkRenameModal(activeFile: TFile | null, scope: BulkRenameScope): void {
 		// Check if there are images before opening modal
+		let images;
 		if (scope === 'note' && activeFile) {
-			const images = this.bulkRenameService.scanImagesInNote(activeFile);
+			images = this.bulkRenameService.scanImagesInNote(activeFile);
 			if (images.length === 0) {
 				new Notice('No images found in current note');
 				return;
 			}
 		} else if (scope === 'vault') {
-			const images = this.bulkRenameService.scanImagesInVault();
+			images = this.bulkRenameService.scanImagesInVault();
 			if (images.length === 0) {
 				new Notice('No images found in vault');
+				return;
+			}
+		}
+
+		// Check if any images actually need renaming (using default settings: replace mode, all filter)
+		if (images && images.length > 0) {
+			const preview = this.bulkRenameService.generatePreview(images, 'replace', 'all');
+			if (preview.length === 0) {
+				new Notice('All images are already correctly named!');
 				return;
 			}
 		}
@@ -136,6 +152,17 @@ export default class SmartImageRenamer extends Plugin {
 			activeFile,
 			scope
 		).open();
+	}
+
+	private openOrphanedImagesModal(): void {
+		const result = this.bulkRenameService.findOrphanedImages();
+
+		if (result.orphaned.length === 0) {
+			new Notice('No orphaned images found. Your vault is clean!');
+			return;
+		}
+
+		new OrphanedImagesModal(this.app, this.bulkRenameService, result).open();
 	}
 
 	private handleImageContextMenu(evt: MouseEvent): void {

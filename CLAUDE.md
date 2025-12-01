@@ -22,9 +22,10 @@ Obsidian plugin that automatically renames pasted images based on the active not
 │   │   ├── image-processor.ts    # Clipboard and image processing
 │   │   └── bulk-rename-service.ts # Bulk rename operations
 │   └── ui/
-│       ├── rename-modal.ts      # Manual rename modal
-│       ├── bulk-rename-modal.ts # Bulk rename modal
-│       └── settings-tab.ts      # Settings tab UI
+│       ├── rename-modal.ts         # Manual rename modal
+│       ├── bulk-rename-modal.ts    # Bulk rename modal
+│       ├── orphaned-images-modal.ts # Orphan cleanup modal
+│       └── settings-tab.ts         # Settings tab UI
 ├── tests/
 │   ├── __mocks__/
 │   │   └── obsidian.ts     # Obsidian API mock
@@ -106,6 +107,14 @@ cp main.js manifest.json styles.css ~/Documents/Taccuino\ Cerusico/.obsidian/plu
 - esbuild (bundler)
 - Vitest (testing)
 - GitHub Actions (CI/CD)
+
+## Development Workflow (TDD)
+Quando sviluppi una nuova funzionalità o correggi un bug:
+
+1. **Scrivi prima i test** - Definisci il comportamento atteso con test che falliscono
+2. **Implementa la funzionalità** - Scrivi il codice minimo per far passare i test
+3. **Refactoring** - Migliora il codice mantenendo i test verdi
+4. **Verifica** - `npm test` deve passare prima di ogni commit
 
 ## Notes
 - minAppVersion: 0.15.0
