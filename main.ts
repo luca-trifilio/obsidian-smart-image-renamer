@@ -61,6 +61,10 @@ export default class SmartImageRenamer extends Plugin {
 		);
 
 		this.registerEvent(
+			this.app.workspace.on('editor-drop', this.handleDrop.bind(this))
+		);
+
+		this.registerEvent(
 			this.app.workspace.on('editor-menu', this.handleEditorMenu.bind(this))
 		);
 
@@ -229,6 +233,48 @@ export default class SmartImageRenamer extends Plugin {
 		} catch (error) {
 			console.error('Smart Image Renamer error:', error);
 			new Notice(`Failed to save image: ${error}`);
+		}
+	}
+
+	private async handleDrop(
+		evt: DragEvent,
+		editor: Editor,
+		info: MarkdownView | { file: TFile | null }
+	): Promise<void> {
+		// Check if already handled
+		if (evt.defaultPrevented) return;
+
+		const dataTransfer = evt.dataTransfer;
+		if (!dataTransfer) return;
+
+		// Get image files from the drop
+		const files = Array.from(dataTransfer.files);
+		const imageFiles = files.filter(file => file.type.startsWith('image/'));
+
+		if (imageFiles.length === 0) return;
+
+		evt.preventDefault();
+
+		const activeFile = info.file;
+		if (!activeFile) {
+			new Notice('No active file found');
+			return;
+		}
+
+		// Process each dropped image
+		for (const imageFile of imageFiles) {
+			try {
+				const result = await this.imageProcessor.processImage(imageFile, activeFile);
+				// Mark this file as processed to avoid double-renaming
+				this.processingFiles.add(result.fileName);
+				setTimeout(() => this.processingFiles.delete(result.fileName), 1000);
+
+				this.imageProcessor.insertMarkdownLink(editor, result.markdownLink);
+				new Notice(`Image saved as ${result.fileName}`);
+			} catch (error) {
+				console.error('Smart Image Renamer error:', error);
+				new Notice(`Failed to save image: ${error}`);
+			}
 		}
 	}
 
