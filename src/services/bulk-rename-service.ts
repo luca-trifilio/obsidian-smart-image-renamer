@@ -31,6 +31,19 @@ export class BulkRenameService {
 	}
 
 	/**
+	 * Check if a filename already follows the "{baseName} {number}" pattern
+	 */
+	private alreadyFollowsNamingPattern(
+		filename: string,
+		expectedBaseName: string
+	): boolean {
+		// Pattern: "{baseName} {number}" where number is 1 or more digits
+		const escapedBase = expectedBaseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		const pattern = new RegExp(`^${escapedBase} \\d+$`);
+		return pattern.test(filename);
+	}
+
+	/**
 	 * Scan all images linked in a specific note
 	 */
 	scanImagesInNote(note: TFile): ImageInfo[] {
@@ -355,6 +368,17 @@ export class BulkRenameService {
 			}
 
 			let baseName = this.generateNewName(image, mode, pattern);
+
+			// In replace mode, skip images that already follow the "{noteName} {number}" pattern
+			if (mode === 'replace') {
+				const sanitizedNoteName = sanitizeFilename(
+					image.sourceNote.basename,
+					this.settings.aggressiveSanitization
+				);
+				if (this.alreadyFollowsNamingPattern(image.file.basename, sanitizedNoteName)) {
+					continue;
+				}
+			}
 
 			// Handle {n} placeholder or add suffix for duplicates
 			if (mode === 'pattern' && pattern?.includes('{n}')) {

@@ -304,9 +304,11 @@ describe('BulkRenameService', () => {
 			const preview = service.generatePreview(images, 'replace', 'all');
 
 			// Only the generic image should be in the preview
+			// Note: since "My Note 1" is skipped entirely, the counter starts fresh
+			// so the new name is "My Note 1" (not 2)
 			expect(preview).toHaveLength(1);
 			expect(preview[0].currentName).toBe('Pasted image 123');
-			expect(preview[0].newName).toBe('My Note 2');
+			expect(preview[0].newName).toBe('My Note 1');
 		});
 
 		it('should skip images when current name equals generated name exactly', () => {
@@ -322,6 +324,44 @@ describe('BulkRenameService', () => {
 
 			// Should be empty since the name wouldn't change
 			expect(preview).toHaveLength(0);
+		});
+
+		it('should skip images that already follow the {NoteName} {number} pattern in replace mode', () => {
+			const note = new TFile('Impianto hi-fi.md');
+			// Images already correctly named with different numbers
+			const img1 = new TFile('Impianto hi-fi 1.png');
+			const img2 = new TFile('Impianto hi-fi 5.jpeg');
+			const img3 = new TFile('Impianto hi-fi 42.png');
+			// Generic image that should be renamed
+			const generic = new TFile('Pasted image 123.png');
+
+			const images = [
+				{ file: img1, sourceNote: note, isGeneric: false },
+				{ file: img2, sourceNote: note, isGeneric: false },
+				{ file: img3, sourceNote: note, isGeneric: false },
+				{ file: generic, sourceNote: note, isGeneric: true }
+			];
+
+			const preview = service.generatePreview(images, 'replace', 'all');
+
+			// Only the generic image should be in the preview
+			expect(preview).toHaveLength(1);
+			expect(preview[0].currentName).toBe('Pasted image 123');
+		});
+
+		it('should NOT skip images with note name but wrong pattern in replace mode', () => {
+			const note = new TFile('My Note.md');
+			// Image has note name but not the "{name} {number}" pattern
+			const wrongPattern = new TFile('My Note - screenshot.png');
+
+			const images = [
+				{ file: wrongPattern, sourceNote: note, isGeneric: false }
+			];
+
+			const preview = service.generatePreview(images, 'replace', 'all');
+
+			// Should be included because it doesn't follow the exact pattern
+			expect(preview).toHaveLength(1);
 		});
 	});
 

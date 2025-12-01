@@ -108,6 +108,14 @@ cp main.js manifest.json styles.css ~/Documents/Taccuino\ Cerusico/.obsidian/plu
 - Vitest (testing)
 - GitHub Actions (CI/CD)
 
+## Development Workflow (TDD)
+Quando sviluppi una nuova funzionalità o correggi un bug:
+
+1. **Scrivi prima i test** - Definisci il comportamento atteso con test che falliscono
+2. **Implementa la funzionalità** - Scrivi il codice minimo per far passare i test
+3. **Refactoring** - Migliora il codice mantenendo i test verdi
+4. **Verifica** - `npm test` deve passare prima di ogni commit
+
 ## Notes
 - minAppVersion: 0.15.0
 - Bundle size ~10KB minified
