@@ -133,6 +133,10 @@ describe('isImageFile', () => {
 		expect(isImageFile('webp')).toBe(true);
 		expect(isImageFile('bmp')).toBe(true);
 		expect(isImageFile('svg')).toBe(true);
+		expect(isImageFile('avif')).toBe(true);
+		expect(isImageFile('tiff')).toBe(true);
+		expect(isImageFile('tif')).toBe(true);
+		expect(isImageFile('ico')).toBe(true);
 	});
 
 	it('should be case insensitive', () => {
@@ -161,6 +165,10 @@ describe('getExtensionFromMime', () => {
 		expect(getExtensionFromMime('image/webp')).toBe('webp');
 		expect(getExtensionFromMime('image/bmp')).toBe('bmp');
 		expect(getExtensionFromMime('image/svg+xml')).toBe('svg');
+		expect(getExtensionFromMime('image/avif')).toBe('avif');
+		expect(getExtensionFromMime('image/tiff')).toBe('tiff');
+		expect(getExtensionFromMime('image/x-icon')).toBe('ico');
+		expect(getExtensionFromMime('image/vnd.microsoft.icon')).toBe('ico');
 	});
 
 	it('should return png as default for unknown MIME types', () => {
@@ -195,6 +203,10 @@ describe('getImageLinkAtCursor', () => {
 		expect(getImageLinkAtCursor('![[test.webp]]', 5)).toBe('test.webp');
 		expect(getImageLinkAtCursor('![[test.bmp]]', 5)).toBe('test.bmp');
 		expect(getImageLinkAtCursor('![[test.svg]]', 5)).toBe('test.svg');
+		expect(getImageLinkAtCursor('![[test.avif]]', 5)).toBe('test.avif');
+		expect(getImageLinkAtCursor('![[test.tiff]]', 5)).toBe('test.tiff');
+		expect(getImageLinkAtCursor('![[test.tif]]', 5)).toBe('test.tif');
+		expect(getImageLinkAtCursor('![[test.ico]]', 5)).toBe('test.ico');
 	});
 
 	it('should return null for non-image links', () => {
