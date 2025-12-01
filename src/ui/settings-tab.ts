@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { SmartImageRenamerSettings } from '../types/settings';
 import { TIMESTAMP_PRESETS, formatTimestamp } from '../utils';
 
@@ -10,8 +10,8 @@ export interface SettingsProvider {
 export class SmartImageRenamerSettingTab extends PluginSettingTab {
 	private provider: SettingsProvider;
 
-	constructor(app: App, plugin: SettingsProvider & { manifest: { id: string; name: string } }) {
-		super(app, plugin as any);
+	constructor(app: App, plugin: Plugin & SettingsProvider) {
+		super(app, plugin);
 		this.provider = plugin;
 	}
 

@@ -1,4 +1,4 @@
-import { TFile, MarkdownView, Editor } from 'obsidian';
+import { TFile, Editor } from 'obsidian';
 import { SmartImageRenamerSettings } from '../types/settings';
 import { FileService } from './file-service';
 import { sanitizeFilename, getExtensionFromMime } from '../utils/filename';

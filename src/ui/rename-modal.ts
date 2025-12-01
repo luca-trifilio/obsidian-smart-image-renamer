@@ -26,8 +26,6 @@ export class RenameImageModal extends Modal {
 			value: this.file.basename,
 			cls: 'rename-image-input'
 		});
-		this.inputEl.style.width = '100%';
-		this.inputEl.style.marginBottom = '1em';
 		this.inputEl.addEventListener('keydown', (e) => {
 			if (e.key === 'Enter') {
 				e.preventDefault();

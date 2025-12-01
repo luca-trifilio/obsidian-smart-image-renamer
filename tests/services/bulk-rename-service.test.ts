@@ -718,8 +718,8 @@ describe('BulkRenameService', () => {
 
 			expect(result.success).toBe(2);
 			expect(result.failed).toBe(0);
-			expect(app.vault.trash).toHaveBeenCalledWith(orphan1, true);
-			expect(app.vault.trash).toHaveBeenCalledWith(orphan2, true);
+			expect(app.fileManager.trashFile).toHaveBeenCalledWith(orphan1);
+			expect(app.fileManager.trashFile).toHaveBeenCalledWith(orphan2);
 		});
 
 		it('should skip unselected images', async () => {
@@ -736,15 +736,15 @@ describe('BulkRenameService', () => {
 			const result = await service.deleteOrphanedImages(images);
 
 			expect(result.success).toBe(1);
-			expect(app.vault.trash).toHaveBeenCalledTimes(1);
-			expect(app.vault.trash).toHaveBeenCalledWith(orphan1, true);
+			expect(app.fileManager.trashFile).toHaveBeenCalledTimes(1);
+			expect(app.fileManager.trashFile).toHaveBeenCalledWith(orphan1);
 		});
 
 		it('should handle delete errors', async () => {
 			const orphan = new TFile('orphan.png');
 			(app.vault as Vault)._addFile(orphan);
 
-			app.vault.trash.mockRejectedValueOnce(new Error('Permission denied'));
+			app.fileManager.trashFile.mockRejectedValueOnce(new Error('Permission denied'));
 
 			const images = [{ file: orphan, size: 100, selected: true }];
 

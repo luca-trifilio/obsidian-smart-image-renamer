@@ -101,7 +101,6 @@ export default class SmartImageRenamer extends Plugin {
 		// during vault indexing
 		setTimeout(() => {
 			this.isStartupComplete = true;
-			console.log('[Smart Image Renamer] Startup complete, now monitoring file creation');
 		}, 3000);
 	}
 
@@ -283,26 +282,20 @@ export default class SmartImageRenamer extends Plugin {
 
 		if (imageFiles.length === 0) return;
 
-		console.log('[Smart Image Renamer] Global drop detected with', imageFiles.length, 'images');
-
 		// Get the active file (could be markdown or excalidraw)
 		const activeFile = this.app.workspace.getActiveFile();
-		console.log('[Smart Image Renamer] Active file:', activeFile?.path);
 
 		if (!activeFile) {
-			console.log('[Smart Image Renamer] No active file, letting default handler proceed');
 			return;
 		}
 
 		// Check if we're in an Excalidraw view
 		const isExcalidraw = activeFile.extension === 'md' &&
 			activeFile.basename.toLowerCase().endsWith('.excalidraw');
-		console.log('[Smart Image Renamer] Is Excalidraw:', isExcalidraw);
 
 		// For Excalidraw, set flag to force rename (skip generic name check)
 		// then vault.on('create') will rename it
 		if (isExcalidraw) {
-			console.log('[Smart Image Renamer] Excalidraw detected, will rename via vault.on(create)');
 			this.forceRenameNext = true;
 			// Reset flag after a delay in case the drop doesn't result in a file creation
 			setTimeout(() => { this.forceRenameNext = false; }, 5000);
@@ -356,42 +349,34 @@ export default class SmartImageRenamer extends Plugin {
 	}
 
 	private async handleFileCreate(file: TAbstractFile): Promise<void> {
-		console.log('[Smart Image Renamer] File created:', file.path, 'startupComplete:', this.isStartupComplete);
-
 		// Skip during startup to avoid processing existing files during vault indexing
 		if (!this.isStartupComplete) {
-			console.log('[Smart Image Renamer] Skipping - startup not complete');
 			return;
 		}
 
 		// Only process if setting is enabled
 		if (!this.settings.autoRenameOnCreate) {
-			console.log('[Smart Image Renamer] Auto-rename disabled in settings');
 			return;
 		}
 
 		// Only process files (not folders)
 		if (!(file instanceof TFile)) {
-			console.log('[Smart Image Renamer] Not a file, skipping');
 			return;
 		}
 
 		// Only process images
 		if (!isImageFile(file.extension)) {
-			console.log('[Smart Image Renamer] Not an image file:', file.extension);
 			return;
 		}
 
 		// Skip if we already processed this file (e.g., from paste handler)
 		if (this.processingFiles.has(file.name)) {
-			console.log('[Smart Image Renamer] Already processing this file');
 			return;
 		}
 
 		// Check if it has a generic name (or if we're forcing rename from Excalidraw drop)
 		const isGeneric = this.bulkRenameService.isGenericName(file.basename);
 		const shouldRename = isGeneric || this.forceRenameNext;
-		console.log('[Smart Image Renamer] Is generic name?', file.basename, isGeneric, 'forceRename:', this.forceRenameNext);
 
 		if (!shouldRename) return;
 
@@ -403,17 +388,13 @@ export default class SmartImageRenamer extends Plugin {
 
 		// Get the active file to use for naming
 		const activeFile = this.app.workspace.getActiveFile();
-		console.log('[Smart Image Renamer] Active file:', activeFile?.path);
 		if (!activeFile) return;
 
 		// Generate new name based on active file
 		const baseName = this.getCleanBaseName(activeFile);
-		console.log('[Smart Image Renamer] Clean base name:', baseName);
 		const sanitized = sanitizeFilename(baseName, this.settings.aggressiveSanitization);
-		console.log('[Smart Image Renamer] Sanitized name:', sanitized);
 
 		if (!sanitized) {
-			console.log('[Smart Image Renamer] Sanitized name is empty, skipping');
 			return;
 		}
 
@@ -435,11 +416,8 @@ export default class SmartImageRenamer extends Plugin {
 			const newFileName = newPath.split('/').pop() || `${sanitized}.${file.extension}`;
 			const newBaseName = newFileName.replace(`.${file.extension}`, '');
 
-			console.log('[Smart Image Renamer] Renaming to:', newBaseName);
-
 			await this.fileService.renameFile(file, newBaseName);
 			new Notice(`Auto-renamed to ${newFileName}`);
-			console.log('[Smart Image Renamer] Renamed successfully to:', newFileName);
 		} catch (error) {
 			console.error('[Smart Image Renamer] Auto-rename error:', error);
 

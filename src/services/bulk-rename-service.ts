@@ -1,4 +1,4 @@
-import { App, TFile, CachedMetadata } from 'obsidian';
+import { App, TFile } from 'obsidian';
 import { SmartImageRenamerSettings } from '../types/settings';
 import {
 	ImageInfo,
@@ -244,7 +244,7 @@ export class BulkRenameService {
 
 		for (const img of selected) {
 			try {
-				await this.app.vault.trash(img.file, true); // true = move to system trash
+				await this.app.fileManager.trashFile(img.file);
 				result.success++;
 			} catch (error) {
 				result.failed++;
