@@ -221,6 +221,7 @@ export class MetadataCache extends MockEventEmitter {
 // Mock FileManager
 export class FileManager {
 	renameFile = vi.fn().mockResolvedValue(undefined);
+	trashFile = vi.fn().mockResolvedValue(undefined);
 }
 
 // Mock Plugin

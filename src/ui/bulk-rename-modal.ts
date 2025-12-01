@@ -36,8 +36,6 @@ export class BulkRenameModal extends Modal {
 		const { contentEl, modalEl } = this;
 		contentEl.addClass('bulk-rename-modal');
 		modalEl.addClass('bulk-rename-modal');
-		modalEl.style.width = '800px';
-		modalEl.style.maxWidth = '95vw';
 		contentEl.empty();
 
 		this.renderHeader();
@@ -50,7 +48,7 @@ export class BulkRenameModal extends Modal {
 
 	private renderHeader(): void {
 		const { contentEl } = this;
-		contentEl.createEl('h2', { text: 'Bulk Rename Images' });
+		contentEl.createEl('h2', { text: 'Bulk rename images' });
 	}
 
 	private renderControls(): void {
@@ -126,8 +124,7 @@ export class BulkRenameModal extends Modal {
 
 	private updatePatternVisibility(): void {
 		if (this.patternSetting) {
-			this.patternSetting.settingEl.style.display =
-				this.mode === 'pattern' ? '' : 'none';
+			this.patternSetting.settingEl.toggle(this.mode === 'pattern');
 		}
 	}
 
