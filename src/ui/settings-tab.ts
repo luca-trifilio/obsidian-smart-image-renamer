@@ -74,6 +74,38 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 			}
 		}
 
+		// Auto-rename on create
+		new Setting(containerEl)
+			.setName('Auto-rename images from any source')
+			.setDesc(
+				'Automatically rename images with generic names (Pasted image, Screenshot, etc.) ' +
+				'when created from any source: drag & drop, Excalidraw, or other plugins.'
+			)
+			.addToggle(toggle => toggle
+				.setValue(this.provider.settings.autoRenameOnCreate)
+				.onChange(async (value) => {
+					this.provider.settings.autoRenameOnCreate = value;
+					await this.provider.saveSettings();
+				}));
+
+		// Suffixes to remove
+		new Setting(containerEl)
+			.setName('Suffixes to remove from note names')
+			.setDesc(
+				'Comma-separated list of suffixes to strip from note names. ' +
+				'Example: .excalidraw,.canvas (removes ".excalidraw" from "Drawing.excalidraw.md")'
+			)
+			.addText(text => text
+				.setValue(this.provider.settings.suffixesToRemove.join(', '))
+				.setPlaceholder('.excalidraw, .canvas')
+				.onChange(async (value) => {
+					this.provider.settings.suffixesToRemove = value
+						.split(',')
+						.map(s => s.trim())
+						.filter(s => s.length > 0);
+					await this.provider.saveSettings();
+				}));
+
 		// Aggressive Sanitization Toggle
 		new Setting(containerEl)
 			.setName('Aggressive filename sanitization')

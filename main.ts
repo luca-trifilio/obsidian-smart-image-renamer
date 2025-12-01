@@ -1,4 +1,4 @@
-import { Plugin, TFile, MarkdownView, Notice, Menu, Editor } from 'obsidian';
+import { Plugin, TFile, MarkdownView, Notice, Menu, Editor, TAbstractFile } from 'obsidian';
 import { SmartImageRenamerSettings, DEFAULT_SETTINGS } from './src/types/settings';
 import { FileService, ImageProcessor, BulkRenameService } from './src/services';
 import { SmartImageRenamerSettingTab, RenameImageModal, BulkRenameModal } from './src/ui';
@@ -16,6 +16,8 @@ export default class SmartImageRenamer extends Plugin {
 	private imageProcessor: ImageProcessor;
 	private bulkRenameService: BulkRenameService;
 	private pendingImageFile: TFile | undefined;
+	// Track files we're processing to avoid double-renaming
+	private processingFiles: Set<string> = new Set();
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -65,6 +67,11 @@ export default class SmartImageRenamer extends Plugin {
 			'contextmenu',
 			this.handleImageContextMenu.bind(this),
 			true
+		);
+
+		// Monitor file creation for auto-rename (drag & drop, Excalidraw, etc.)
+		this.registerEvent(
+			this.app.vault.on('create', this.handleFileCreate.bind(this))
 		);
 	}
 
@@ -203,11 +210,73 @@ export default class SmartImageRenamer extends Plugin {
 
 		try {
 			const result = await this.imageProcessor.processImage(imageFile, activeFile);
+			// Mark this file as processed to avoid double-renaming
+			this.processingFiles.add(result.fileName);
+			setTimeout(() => this.processingFiles.delete(result.fileName), 1000);
+
 			this.imageProcessor.insertMarkdownLink(markdownView.editor, result.markdownLink);
 			new Notice(`Image saved as ${result.fileName}`);
 		} catch (error) {
 			console.error('Smart Image Renamer error:', error);
 			new Notice(`Failed to save image: ${error}`);
 		}
+	}
+
+	private async handleFileCreate(file: TAbstractFile): Promise<void> {
+		// Only process if setting is enabled
+		if (!this.settings.autoRenameOnCreate) return;
+
+		// Only process files (not folders)
+		if (!(file instanceof TFile)) return;
+
+		// Only process images
+		if (!isImageFile(file.extension)) return;
+
+		// Skip if we already processed this file (e.g., from paste handler)
+		if (this.processingFiles.has(file.name)) return;
+
+		// Check if it has a generic name
+		if (!this.bulkRenameService.isGenericName(file.basename)) return;
+
+		// Small delay to let the file system settle and get the active file
+		await new Promise(resolve => setTimeout(resolve, 100));
+
+		// Get the active file to use for naming
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) return;
+
+		// Generate new name based on active file
+		const baseName = this.getCleanBaseName(activeFile);
+		const sanitized = sanitizeFilename(baseName, this.settings.aggressiveSanitization);
+
+		if (!sanitized) return;
+
+		try {
+			// Mark as processing
+			this.processingFiles.add(file.path);
+
+			const newFileName = await this.fileService.renameFile(file, sanitized);
+			new Notice(`Auto-renamed to ${newFileName}`);
+		} catch (error) {
+			console.error('Smart Image Renamer auto-rename error:', error);
+		} finally {
+			this.processingFiles.delete(file.path);
+		}
+	}
+
+	/**
+	 * Get clean base name from a file, removing configured suffixes
+	 */
+	private getCleanBaseName(file: TFile): string {
+		let name = file.basename;
+
+		for (const suffix of this.settings.suffixesToRemove) {
+			if (name.toLowerCase().endsWith(suffix.toLowerCase())) {
+				name = name.slice(0, -suffix.length);
+				break;
+			}
+		}
+
+		return name;
 	}
 }
