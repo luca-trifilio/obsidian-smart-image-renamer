@@ -21,6 +21,8 @@ export default class SmartImageRenamer extends Plugin {
 	private processingFiles: Set<string> = new Set();
 	// Flag to skip file creation events during startup
 	private isStartupComplete: boolean = false;
+	// Flag to force rename (skip generic name check) - set during Excalidraw drops
+	private forceRenameNext: boolean = false;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -270,10 +272,13 @@ export default class SmartImageRenamer extends Plugin {
 			activeFile.basename.toLowerCase().endsWith('.excalidraw');
 		console.log('[Smart Image Renamer] Is Excalidraw:', isExcalidraw);
 
-		// For Excalidraw, we'll let the default handler save the file,
+		// For Excalidraw, set flag to force rename (skip generic name check)
 		// then vault.on('create') will rename it
 		if (isExcalidraw) {
 			console.log('[Smart Image Renamer] Excalidraw detected, will rename via vault.on(create)');
+			this.forceRenameNext = true;
+			// Reset flag after a delay in case the drop doesn't result in a file creation
+			setTimeout(() => { this.forceRenameNext = false; }, 5000);
 			return;
 		}
 
@@ -356,10 +361,15 @@ export default class SmartImageRenamer extends Plugin {
 			return;
 		}
 
-		// Check if it has a generic name
+		// Check if it has a generic name (or if we're forcing rename from Excalidraw drop)
 		const isGeneric = this.bulkRenameService.isGenericName(file.basename);
-		console.log('[Smart Image Renamer] Is generic name?', file.basename, isGeneric);
-		if (!isGeneric) return;
+		const shouldRename = isGeneric || this.forceRenameNext;
+		console.log('[Smart Image Renamer] Is generic name?', file.basename, isGeneric, 'forceRename:', this.forceRenameNext);
+
+		if (!shouldRename) return;
+
+		// Reset the force flag
+		this.forceRenameNext = false;
 
 		// Small delay to let the file system settle and get the active file
 		await new Promise(resolve => setTimeout(resolve, 100));
