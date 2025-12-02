@@ -35,7 +35,8 @@ Obsidian plugin that automatically renames pasted images based on the active not
 │   └── RELEASE_WORKFLOW.md # Release process documentation
 ├── .github/workflows/
 │   ├── pr.yml              # PR pipeline: validate → build → beta
-│   └── release.yml         # Release pipeline: build → release → cleanup
+│   ├── release.yml         # Release pipeline: build → release → cleanup
+│   └── cleanup-betas.yml   # Cleanup betas when PR closed without merge
 ├── manifest.json           # Obsidian plugin manifest
 ├── versions.json           # Version → minAppVersion map
 ├── styles.css              # Plugin CSS styles
@@ -80,7 +81,8 @@ PR #42, commit abc1234
 | Workflow | Trigger | Azione |
 |----------|---------|--------|
 | `pr.yml` | PR aperta/aggiornata | validate → build-test → beta-release |
-| `release.yml` | PR chiusa | build → release → cleanup (o solo cleanup se non merged) |
+| `release.yml` | PR merged con label | build → release → cleanup |
+| `cleanup-betas.yml` | PR chiusa senza merge | cleanup beta releases |
 
 ## Local Testing
 ```bash
