@@ -6,7 +6,10 @@
       "Bash(git push)",
       "WebFetch(domain:github.com)",
       "Bash(gh run view:*)",
-      "Bash(npm root:*)"
+      "Bash(npm root:*)",
+      "Bash(npm ls:*)",
+      "Bash(npx eslint .)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

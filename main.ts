@@ -1,4 +1,4 @@
-import { Plugin, TFile, MarkdownView, Notice, Menu, Editor, TAbstractFile } from 'obsidian';
+import { Plugin, TFile, MarkdownView, MarkdownFileInfo, Notice, Menu, Editor, TAbstractFile } from 'obsidian';
 import { SmartImageRenamerSettings, DEFAULT_SETTINGS } from './src/types/settings';
 import { FileService, ImageProcessor, BulkRenameService } from './src/services';
 import { SmartImageRenamerSettingTab, RenameImageModal, BulkRenameModal, OrphanedImagesModal } from './src/ui';
@@ -64,21 +64,29 @@ export default class SmartImageRenamer extends Plugin {
 			callback: () => this.openOrphanedImagesModal(),
 		});
 
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
-		this.registerEvent(this.app.workspace.on('editor-paste', this.handlePaste.bind(this)));
+		this.registerEvent(
+			this.app.workspace.on('editor-paste', (evt, editor, view) => {
+				void this.handlePaste(evt, editor, view);
+			})
+		);
 
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
-		this.registerEvent(this.app.workspace.on('editor-drop', this.handleDrop.bind(this)));
+		this.registerEvent(
+			this.app.workspace.on('editor-drop', (evt, editor, view) => {
+				void this.handleDrop(evt, editor, view);
+			})
+		);
 
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
-		this.registerEvent(this.app.workspace.on('editor-menu', this.handleEditorMenu.bind(this)));
+		this.registerEvent(
+			this.app.workspace.on('editor-menu', (menu, editor, view) => {
+				this.handleEditorMenu(menu, editor, view);
+			})
+		);
 
 		// Context menu on rendered images - capture phase to run before Obsidian
 		this.registerDomEvent(
 			document,
 			'contextmenu',
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
-			this.handleImageContextMenu.bind(this),
+			(evt: MouseEvent) => { this.handleImageContextMenu(evt); },
 			true
 		);
 
@@ -86,14 +94,14 @@ export default class SmartImageRenamer extends Plugin {
 		this.registerDomEvent(
 			document,
 			'drop',
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
-			this.handleGlobalDrop.bind(this),
+			(evt: DragEvent) => { void this.handleGlobalDrop(evt); },
 			true
 		);
 
 		// Monitor file creation for auto-rename (drag & drop, Excalidraw, etc.)
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
-		this.registerEvent(this.app.vault.on('create', this.handleFileCreate.bind(this)));
+		this.registerEvent(
+			this.app.vault.on('create', (file) => { void this.handleFileCreate(file); })
+		);
 
 		// Mark startup as complete after a delay to avoid processing existing files
 		// during vault indexing
@@ -184,7 +192,7 @@ export default class SmartImageRenamer extends Plugin {
 		}, 100);
 	}
 
-	private handleEditorMenu(menu: Menu, editor: Editor, view: MarkdownView): void {
+	private handleEditorMenu(menu: Menu, editor: Editor, info: MarkdownView | MarkdownFileInfo): void {
 		// Check if we have a pending image from DOM right-click
 		if (this.pendingImageFile) {
 			const file = this.pendingImageFile;
@@ -206,7 +214,7 @@ export default class SmartImageRenamer extends Plugin {
 		menu.addItem((item) => {
 			item.setTitle('Rename image')
 				.setIcon('pencil')
-				.onClick(() => this.renameImageFromLink(imageLink, view));
+				.onClick(() => this.renameImageFromLink(imageLink, info));
 		});
 	}
 
@@ -227,8 +235,8 @@ export default class SmartImageRenamer extends Plugin {
 		}).open();
 	}
 
-	private async renameImageFromLink(imageName: string, view: MarkdownView): Promise<void> {
-		const file = this.fileService.resolveImageLink(imageName, view.file?.path || '');
+	private async renameImageFromLink(imageName: string, info: MarkdownView | MarkdownFileInfo): Promise<void> {
+		const file = this.fileService.resolveImageLink(imageName, info.file?.path || '');
 		if (!file) {
 			new Notice(`Image not found: ${imageName}`);
 			return;
@@ -239,8 +247,8 @@ export default class SmartImageRenamer extends Plugin {
 
 	private async handlePaste(
 		evt: ClipboardEvent,
-		_editor: Editor,
-		markdownView: MarkdownView
+		editor: Editor,
+		info: MarkdownView | MarkdownFileInfo
 	): Promise<void> {
 		const clipboardData = evt.clipboardData;
 		if (!clipboardData) return;
@@ -250,7 +258,7 @@ export default class SmartImageRenamer extends Plugin {
 
 		evt.preventDefault();
 
-		const activeFile = markdownView.file;
+		const activeFile = info.file;
 		if (!activeFile) {
 			new Notice('No active file found');
 			return;
@@ -262,7 +270,7 @@ export default class SmartImageRenamer extends Plugin {
 			this.processingFiles.add(result.fileName);
 			setTimeout(() => this.processingFiles.delete(result.fileName), 1000);
 
-			this.imageProcessor.insertMarkdownLink(markdownView.editor, result.markdownLink);
+			this.imageProcessor.insertMarkdownLink(editor, result.markdownLink);
 			new Notice(`Image saved as ${result.fileName}`);
 		} catch (error) {
 			console.error('Smart Image Renamer error:', error);
