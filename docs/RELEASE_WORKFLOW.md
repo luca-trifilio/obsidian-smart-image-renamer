@@ -20,9 +20,11 @@ git push origin feature/my-feature
 
 ### 2. Apertura PR
 
-Quando apri una PR verso `main`:
-1. **CI (`ci.yml`)**: Esegue test e build
-2. **Beta Release (`beta-release.yml`)**: Crea una pre-release automatica
+Quando apri una PR verso `main`, il workflow `pr.yml` esegue in sequenza:
+
+1. **Validate** → Verifica presenza label `release:*`
+2. **Build-Test** → Lint, test, build (con cache artifacts)
+3. **Beta-Release** → Crea pre-release per testing
 
 ### 3. Labels obbligatorie
 
@@ -63,77 +65,79 @@ Per testare la beta:
 
 ### 6. Merge e Release Stabile
 
-Al merge della PR:
+Al merge della PR, il workflow `release.yml` esegue in sequenza:
 
-1. **Auto Release (`auto-release.yml`)**:
-   - Legge la label
-   - Esegue `npm version [patch|minor|major]`
-   - Aggiorna `manifest.json` e `versions.json`
-   - Crea commit e tag
-   - Pubblica release stabile su GitHub
+1. **Build** → Lint, test (verifica finale)
+2. **Release** → `npm version`, push tag, GitHub Release
+3. **Cleanup** → Elimina tutte le beta releases della PR
 
-2. **Cleanup (`cleanup-beta.yml`)**:
-   - Elimina tutte le beta releases della PR
+Se la PR viene chiusa senza merge, viene eseguito solo il cleanup.
 
 ## Diagramma
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                  │
-│   feature/xxx                                                    │
-│        │                                                         │
-│        ├──── push ────► CI (test + build)                       │
-│        │                                                         │
-│        └──── PR aperta/aggiornata                               │
-│                    │                                             │
-│                    ▼                                             │
-│        ┌─────────────────────────┐                              │
-│        │ beta-release.yml        │                              │
-│        │                         │                              │
-│        │ 1. Legge label          │                              │
-│        │ 2. Calcola versione     │                              │
-│        │ 3. Crea pre-release     │                              │
-│        │ 4. Commenta su PR       │                              │
-│        └─────────────────────────┘                              │
-│                    │                                             │
-│                    ▼                                             │
-│        Testa beta con BRAT                                       │
-│                    │                                             │
-│        ┌───────────┴───────────┐                                │
-│        │                       │                                 │
-│        ▼                       ▼                                 │
-│    Bug trovato            Tutto OK                               │
-│        │                       │                                 │
-│        ▼                       ▼                                 │
-│    Push fix               Merge PR                               │
-│    (nuova beta)                │                                 │
-│                                ▼                                 │
-│                   ┌─────────────────────────┐                   │
-│                   │ auto-release.yml        │                   │
-│                   │                         │                   │
-│                   │ 1. npm version bump     │                   │
-│                   │ 2. Push tag             │                   │
-│                   │ 3. GitHub Release       │                   │
-│                   └─────────────────────────┘                   │
-│                                │                                 │
-│                                ▼                                 │
-│                   ┌─────────────────────────┐                   │
-│                   │ cleanup-beta.yml        │                   │
-│                   │                         │                   │
-│                   │ Elimina beta releases   │                   │
-│                   └─────────────────────────┘                   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  PR Pipeline (pr.yml)                                               │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   feature/xxx                                                       │
+│        │                                                            │
+│        └──── PR aperta/aggiornata                                   │
+│                    │                                                │
+│        ┌───────────┴───────────┐                                    │
+│        ▼                       │                                    │
+│  ┌──────────┐                  │                                    │
+│  │ validate │──── fail ────────┼────► ❌ Missing label              │
+│  └────┬─────┘                  │                                    │
+│       │ pass                   │                                    │
+│       ▼                        │                                    │
+│  ┌────────────┐                │                                    │
+│  │ build-test │──── fail ──────┼────► ❌ Test/Lint failed           │
+│  └────┬───────┘                │                                    │
+│       │ pass                   │                                    │
+│       ▼                        │                                    │
+│  ┌──────────────┐              │                                    │
+│  │ beta-release │              │                                    │
+│  │              │              │                                    │
+│  │ • Calc version              │                                    │
+│  │ • Create release            │                                    │
+│  │ • Comment PR │              │                                    │
+│  └──────────────┘              │                                    │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+                    │
+        Testa beta con BRAT
+                    │
+        ┌───────────┴───────────┐
+        │                       │
+        ▼                       ▼
+    Bug trovato            Tutto OK
+        │                       │
+        ▼                       ▼
+    Push fix               Merge PR
+    (nuova beta)                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  Release Pipeline (release.yml)                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌───────┐     ┌─────────┐     ┌─────────┐                         │
+│  │ build │────►│ release │────►│ cleanup │                         │
+│  │       │     │         │     │         │                         │
+│  │ lint  │     │ version │     │ delete  │                         │
+│  │ test  │     │ tag     │     │ betas   │                         │
+│  └───────┘     │ publish │     └─────────┘                         │
+│                └─────────┘                                          │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ## File coinvolti
 
 | File | Descrizione |
 |------|-------------|
-| `.github/workflows/ci.yml` | Test e build su ogni push |
-| `.github/workflows/beta-release.yml` | Crea beta su PR |
-| `.github/workflows/auto-release.yml` | Release stabile al merge |
-| `.github/workflows/cleanup-beta.yml` | Pulizia beta al merge/close |
+| `.github/workflows/pr.yml` | Pipeline PR: validate → build → beta |
+| `.github/workflows/release.yml` | Pipeline release: build → release → cleanup |
 | `manifest.json` | Versione del plugin |
 | `versions.json` | Mapping versione → minAppVersion |
 | `version-bump.mjs` | Script per sync versioni |
