@@ -113,12 +113,12 @@ Quando sviluppi una nuova funzionalità o correggi un bug:
 4. **Verifica** - `npm test` deve passare prima di ogni commit
 
 ## Pre-commit Hook
-Il progetto usa **husky** per eseguire automaticamente lint e test prima di ogni commit:
+Il progetto usa **husky** per eseguire automaticamente lint, build e test prima di ogni commit:
 ```
-npm run lint → npm test → commit
+npm run lint → npm run build → npm test → commit
 ```
 
-Se lint o test falliscono, il commit viene bloccato.
+Se lint, build o test falliscono, il commit viene bloccato.
 
 ## Code Standards (Obsidian Plugin Review)
 Per passare la review di Obsidian, il codice deve rispettare:
