@@ -1,4 +1,4 @@
-import { App, Modal, TFile, Setting } from 'obsidian';
+import { App, Modal, Setting, TFile } from 'obsidian';
 
 export class RenameImageModal extends Modal {
 	private file: TFile;
@@ -15,7 +15,7 @@ export class RenameImageModal extends Modal {
 		const { contentEl } = this;
 		contentEl.addClass('rename-image-modal');
 
-		contentEl.createEl('h3', { text: 'Rename image' });
+		new Setting(contentEl).setName('Rename image').setHeading();
 		contentEl.createEl('p', {
 			text: `Current: ${this.file.basename}`,
 			cls: 'rename-image-current'

@@ -64,21 +64,29 @@ export default class SmartImageRenamer extends Plugin {
 			callback: () => this.openOrphanedImagesModal(),
 		});
 
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
-		this.registerEvent(this.app.workspace.on('editor-paste', this.handlePaste.bind(this)));
+		this.registerEvent(
+			this.app.workspace.on('editor-paste', (evt, editor, view) => {
+				void this.handlePaste(evt, editor, view);
+			})
+		);
 
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
-		this.registerEvent(this.app.workspace.on('editor-drop', this.handleDrop.bind(this)));
+		this.registerEvent(
+			this.app.workspace.on('editor-drop', (evt, editor, view) => {
+				void this.handleDrop(evt, editor, view);
+			})
+		);
 
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
-		this.registerEvent(this.app.workspace.on('editor-menu', this.handleEditorMenu.bind(this)));
+		this.registerEvent(
+			this.app.workspace.on('editor-menu', (menu, editor, view) => {
+				this.handleEditorMenu(menu, editor, view);
+			})
+		);
 
 		// Context menu on rendered images - capture phase to run before Obsidian
 		this.registerDomEvent(
 			document,
 			'contextmenu',
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
-			this.handleImageContextMenu.bind(this),
+			(evt: MouseEvent) => { this.handleImageContextMenu(evt); },
 			true
 		);
 
@@ -86,14 +94,14 @@ export default class SmartImageRenamer extends Plugin {
 		this.registerDomEvent(
 			document,
 			'drop',
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
-			this.handleGlobalDrop.bind(this),
+			(evt: DragEvent) => { void this.handleGlobalDrop(evt); },
 			true
 		);
 
 		// Monitor file creation for auto-rename (drag & drop, Excalidraw, etc.)
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- Obsidian API
-		this.registerEvent(this.app.vault.on('create', this.handleFileCreate.bind(this)));
+		this.registerEvent(
+			this.app.vault.on('create', (file) => { void this.handleFileCreate(file); })
+		);
 
 		// Mark startup as complete after a delay to avoid processing existing files
 		// during vault indexing

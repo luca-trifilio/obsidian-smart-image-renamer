@@ -48,7 +48,7 @@ export class BulkRenameModal extends Modal {
 
 	private renderHeader(): void {
 		const { contentEl } = this;
-		contentEl.createEl('h2', { text: 'Bulk rename images' });
+		new Setting(contentEl).setName('Bulk rename images').setHeading();
 	}
 
 	private renderControls(): void {
@@ -120,11 +120,10 @@ export class BulkRenameModal extends Modal {
 		this.updatePatternVisibility();
 	}
 
-	private patternSetting: Setting;
+	private patternSetting: Setting | undefined;
 
 	private updatePatternVisibility(): void {
-		// eslint-disable-next-line @typescript-eslint/no-misused-promises -- Setting is not a Promise
-		if (this.patternSetting) {
+		if (this.patternSetting !== undefined) {
 			this.patternSetting.settingEl.toggle(this.mode === 'pattern');
 		}
 	}

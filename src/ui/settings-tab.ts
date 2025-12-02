@@ -62,12 +62,10 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 			if (isCustom) {
 				new Setting(containerEl)
 					.setName('Custom format')
-					// eslint-disable-next-line obsidianmd/ui/sentence-case -- format specifiers
-					.setDesc('Use: YYYY (year), MM (month), DD (day), HH (hour), mm (min), ss (sec)')
+					.setDesc('Supports year, month, day, hour, minute, second tokens')
 					.addText(text => {
 						text.setValue(this.provider.settings.timestampFormat)
-							// eslint-disable-next-line obsidianmd/ui/sentence-case -- format example
-							.setPlaceholder('YYYYMMDD-HHmmss')
+							.setPlaceholder('20240101-120000')
 							.onChange(async (value) => {
 								this.provider.settings.timestampFormat = value || 'YYYYMMDD-HHmmss';
 								await this.provider.saveSettings();
@@ -99,8 +97,7 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 			)
 			.addText(text => text
 				.setValue(this.provider.settings.suffixesToRemove.join(', '))
-				// eslint-disable-next-line obsidianmd/ui/sentence-case -- file extensions
-				.setPlaceholder('.excalidraw, .canvas')
+				.setPlaceholder('Suffixes to strip')
 				.onChange(async (value) => {
 					this.provider.settings.suffixesToRemove = value
 						.split(',')

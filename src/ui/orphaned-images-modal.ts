@@ -31,7 +31,7 @@ export class OrphanedImagesModal extends Modal {
 	private renderHeader(): void {
 		const { contentEl } = this;
 
-		contentEl.createEl('h2', { text: 'Orphaned images' });
+		new Setting(contentEl).setName('Orphaned images').setHeading();
 
 		const statsDiv = contentEl.createDiv({ cls: 'orphaned-images-stats' });
 		const totalSize = this.formatSize(
@@ -275,7 +275,7 @@ class ConfirmDeleteModal extends Modal {
 		const { contentEl } = this;
 		contentEl.addClass('confirm-delete-modal');
 
-		contentEl.createEl('h3', { text: 'Confirm deletion' });
+		new Setting(contentEl).setName('Confirm deletion').setHeading();
 
 		contentEl.createEl('p', {
 			text: `Are you sure you want to delete ${this.count} image${this.count !== 1 ? 's' : ''}?`,
