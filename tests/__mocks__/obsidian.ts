@@ -449,3 +449,8 @@ export function createMockImageElement(src: string): HTMLImageElement {
 	img.setAttribute('src', src);
 	return img;
 }
+
+// Mock moment with locale() method for i18n
+export const moment = {
+	locale: vi.fn().mockReturnValue('en'),
+};

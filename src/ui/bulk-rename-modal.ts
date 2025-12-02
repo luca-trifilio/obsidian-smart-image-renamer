@@ -8,6 +8,7 @@ import {
 	BulkRenameScope,
 } from '../types/bulk-rename';
 import { OrphanedImagesModal } from './orphaned-images-modal';
+import { t } from '../i18n';
 
 export class BulkRenameModal extends Modal {
 	private service: BulkRenameService;
@@ -48,7 +49,7 @@ export class BulkRenameModal extends Modal {
 
 	private renderHeader(): void {
 		const { contentEl } = this;
-		new Setting(contentEl).setName('Bulk rename images').setHeading();
+		new Setting(contentEl).setName(t('bulkRename.title')).setHeading();
 	}
 
 	private renderControls(): void {
@@ -57,12 +58,12 @@ export class BulkRenameModal extends Modal {
 
 		// Scope selector
 		new Setting(controlsDiv)
-			.setName('Scope')
-			.setDesc('Where to search for images')
+			.setName(t('bulkRename.scope.name'))
+			.setDesc(t('bulkRename.scope.desc'))
 			.addDropdown((dropdown) => {
 				dropdown
-					.addOption('note', 'Current note')
-					.addOption('vault', 'Entire vault')
+					.addOption('note', t('bulkRename.scope.note'))
+					.addOption('vault', t('bulkRename.scope.vault'))
 					.setValue(this.renameScope)
 					.setDisabled(!this.activeNote)
 					.onChange((value: BulkRenameScope) => {
@@ -73,12 +74,12 @@ export class BulkRenameModal extends Modal {
 
 		// Filter selector
 		new Setting(controlsDiv)
-			.setName('Filter')
-			.setDesc('Which images to include')
+			.setName(t('bulkRename.filter.name'))
+			.setDesc(t('bulkRename.filter.desc'))
 			.addDropdown((dropdown) => {
 				dropdown
-					.addOption('generic', 'Only generic names (pasted, screenshot...)')
-					.addOption('all', 'All images')
+					.addOption('generic', t('bulkRename.filter.generic'))
+					.addOption('all', t('bulkRename.filter.all'))
 					.setValue(this.filter)
 					.onChange((value: ImageFilter) => {
 						this.filter = value;
@@ -88,13 +89,13 @@ export class BulkRenameModal extends Modal {
 
 		// Mode selector
 		new Setting(controlsDiv)
-			.setName('Rename mode')
-			.setDesc('How to generate new names')
+			.setName(t('bulkRename.mode.name'))
+			.setDesc(t('bulkRename.mode.desc'))
 			.addDropdown((dropdown) => {
 				dropdown
-					.addOption('replace', 'Use note name (note 1, note 2...)')
-					.addOption('prepend', 'Prepend note name (note - original)')
-					.addOption('pattern', 'Custom pattern')
+					.addOption('replace', t('bulkRename.mode.replace'))
+					.addOption('prepend', t('bulkRename.mode.prepend'))
+					.addOption('pattern', t('bulkRename.mode.pattern'))
 					.setValue(this.mode)
 					.onChange((value: BulkRenameMode) => {
 						this.mode = value;
@@ -105,8 +106,8 @@ export class BulkRenameModal extends Modal {
 
 		// Pattern input (shown only for pattern mode)
 		this.patternSetting = new Setting(controlsDiv)
-			.setName('Pattern')
-			.setDesc('Use {note}, {original}, {n} as placeholders')
+			.setName(t('bulkRename.pattern.name'))
+			.setDesc(t('bulkRename.pattern.desc'))
 			.addText((text) => {
 				text
 					.setValue(this.pattern)
@@ -136,13 +137,13 @@ export class BulkRenameModal extends Modal {
 		const selectDiv = footerDiv.createDiv({ cls: 'bulk-rename-select-actions' });
 
 		const selectAllBtn = selectDiv.createEl('button', {
-			text: 'Select all',
+			text: t('bulkRename.selectAll'),
 			cls: 'mod-muted',
 		});
 		selectAllBtn.addEventListener('click', () => this.selectAll(true));
 
 		const selectNoneBtn = selectDiv.createEl('button', {
-			text: 'Select none',
+			text: t('bulkRename.selectNone'),
 			cls: 'mod-muted',
 		});
 		selectNoneBtn.addEventListener('click', () => this.selectAll(false));
@@ -151,18 +152,18 @@ export class BulkRenameModal extends Modal {
 		new Setting(footerDiv)
 			.addButton((btn) =>
 				btn
-					.setButtonText('Rename selected')
+					.setButtonText(t('bulkRename.renameSelected'))
 					.setCta()
 					.onClick(() => this.executeRename())
 			)
 			.addButton((btn) =>
-				btn.setButtonText('Cancel').onClick(() => this.close())
+				btn.setButtonText(t('bulkRename.cancel')).onClick(() => this.close())
 			);
 	}
 
 	private async scanAndPreview(): Promise<void> {
 		this.listContainer.empty();
-		this.listContainer.createEl('p', { text: 'Scanning...', cls: 'bulk-rename-scanning' });
+		this.listContainer.createEl('p', { text: t('bulkRename.scanning'), cls: 'bulk-rename-scanning' });
 
 		// Scan images
 		if (this.renameScope === 'note' && this.activeNote) {
@@ -193,7 +194,7 @@ export class BulkRenameModal extends Modal {
 
 		if (this.previewItems.length === 0 && orphanImages.length === 0) {
 			this.listContainer.createEl('p', {
-				text: 'No images found matching the filter.',
+				text: t('bulkRename.noImagesFound'),
 				cls: 'bulk-rename-empty',
 			});
 			return;
@@ -203,7 +204,7 @@ export class BulkRenameModal extends Modal {
 		if (this.previewItems.length > 0) {
 			const count = this.previewItems.length;
 			this.listContainer.createEl('p', {
-				text: `Found ${count} image${count !== 1 ? 's' : ''} to rename:`,
+				text: t('bulkRename.foundImages', { count }),
 				cls: 'bulk-rename-count',
 			});
 
@@ -218,12 +219,12 @@ export class BulkRenameModal extends Modal {
 			const orphanHeader = this.listContainer.createDiv({ cls: 'bulk-rename-orphan-header' });
 
 			orphanHeader.createEl('p', {
-				text: `${orphanImages.length} orphan image${orphanImages.length !== 1 ? 's' : ''} (not linked):`,
+				text: t('bulkRename.orphanImages', { count: orphanImages.length }),
 				cls: 'bulk-rename-count bulk-rename-orphan-title',
 			});
 
 			const manageBtn = orphanHeader.createEl('button', {
-				text: 'Manage orphans →',
+				text: t('bulkRename.manageOrphans'),
 				cls: 'mod-muted bulk-rename-manage-orphans-btn',
 			});
 			manageBtn.addEventListener('click', () => this.openOrphanedImagesModal());
@@ -261,7 +262,7 @@ export class BulkRenameModal extends Modal {
 		currentName.createSpan({ text: `.${item.file.extension}`, cls: 'bulk-rename-ext' });
 
 		if (item.isGeneric) {
-			currentRow.createSpan({ text: 'auto', cls: 'bulk-rename-tag bulk-rename-tag-generic' });
+			currentRow.createSpan({ text: t('bulkRename.tagGeneric'), cls: 'bulk-rename-tag bulk-rename-tag-generic' });
 		}
 
 		// Row 2: New proposed name
@@ -274,7 +275,7 @@ export class BulkRenameModal extends Modal {
 		// Row 3: Source note (if available)
 		if (item.sourceNote) {
 			const sourceRow = contentEl.createDiv({ cls: 'bulk-rename-row bulk-rename-source-row' });
-			sourceRow.createSpan({ text: 'in ' });
+			sourceRow.createSpan({ text: t('bulkRename.inNote') + ' ' });
 			sourceRow.createSpan({ text: item.sourceNote.basename, cls: 'bulk-rename-source-note' });
 		}
 	}
@@ -296,7 +297,7 @@ export class BulkRenameModal extends Modal {
 		const name = nameRow.createSpan({ cls: 'bulk-rename-current-name' });
 		name.createSpan({ text: image.file.basename });
 		name.createSpan({ text: `.${image.file.extension}`, cls: 'bulk-rename-ext' });
-		nameRow.createSpan({ text: 'orphan', cls: 'bulk-rename-tag bulk-rename-tag-orphan' });
+		nameRow.createSpan({ text: t('bulkRename.tagOrphan'), cls: 'bulk-rename-tag bulk-rename-tag-orphan' });
 
 		// Path
 		const pathRow = contentEl.createDiv({ cls: 'bulk-rename-row bulk-rename-source-row' });
@@ -320,24 +321,22 @@ export class BulkRenameModal extends Modal {
 		const selectedCount = this.previewItems.filter((i) => i.selected).length;
 
 		if (selectedCount === 0) {
-			new Notice('No images selected');
+			new Notice(t('notices.noImagesSelected'));
 			return;
 		}
 
 		this.listContainer.empty();
 		this.listContainer.createEl('p', {
-			text: `Renaming ${selectedCount} image${selectedCount !== 1 ? 's' : ''}...`,
+			text: t('bulkRename.renaming', { count: selectedCount }),
 			cls: 'bulk-rename-progress',
 		});
 
 		const result = await this.service.executeBulkRename(this.previewItems);
 
 		if (result.failed === 0) {
-			new Notice(`Successfully renamed ${result.success} image${result.success !== 1 ? 's' : ''}`);
+			new Notice(t('notices.successfullyRenamed', { count: result.success }));
 		} else {
-			new Notice(
-				`Renamed ${result.success}, failed ${result.failed}. Check console for details.`
-			);
+			new Notice(t('notices.renamedWithErrors', { success: result.success, failed: result.failed }));
 			console.error('Bulk rename errors:', result.errors);
 		}
 
