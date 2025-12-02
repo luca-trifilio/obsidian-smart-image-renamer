@@ -112,6 +112,23 @@ Quando sviluppi una nuova funzionalità o correggi un bug:
 3. **Refactoring** - Migliora il codice mantenendo i test verdi
 4. **Verifica** - `npm test` deve passare prima di ogni commit
 
+## Pre-commit Hook
+Il progetto usa **husky** per eseguire automaticamente lint e test prima di ogni commit:
+```
+npm run lint → npm test → commit
+```
+
+Se lint o test falliscono, il commit viene bloccato.
+
+## Code Standards (Obsidian Plugin Review)
+Per passare la review di Obsidian, il codice deve rispettare:
+
+1. **No eslint-disable** - Risolvere gli errori invece di sopprimerli
+2. **Sentence case** - Testo UI in sentence case (prima lettera maiuscola)
+3. **Setting headings** - Usare `new Setting().setName().setHeading()` invece di `createEl('h2')`
+4. **Promise handling** - Usare `void` per ignorare Promise, mai lasciare floating
+5. **Type safety** - Evitare `any`, usare arrow functions con tipi espliciti
+
 ## Notes
 - minAppVersion: 0.15.0
 - Bundle size ~10KB minified
