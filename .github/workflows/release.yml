@@ -123,32 +123,3 @@ jobs:
           done
 
           echo "✅ Cleanup completed"
-
-  # Cleanup betas anche se PR chiusa senza merge
-  cleanup-on-close:
-    if: github.event.pull_request.merged == false
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Delete beta releases
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pr_number="${{ github.event.pull_request.number }}"
-          echo "PR #${pr_number} closed without merge, cleaning up betas..."
-
-          releases=$(gh release list --repo ${{ github.repository }} \
-            --json tagName -q ".[].tagName" | grep "beta.pr${pr_number}" || true)
-
-          if [ -z "$releases" ]; then
-            echo "No beta releases found"
-            exit 0
-          fi
-
-          for tag in $releases; do
-            echo "Deleting: $tag"
-            gh release delete "$tag" --repo ${{ github.repository }} --yes --cleanup-tag || true
-          done
-
-          echo "✅ Cleanup completed"
