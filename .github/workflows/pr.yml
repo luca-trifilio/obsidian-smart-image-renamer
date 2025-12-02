@@ -126,7 +126,7 @@ jobs:
           bump_type="${{ needs.validate.outputs.bump_type }}"
           pr_number="${{ github.event.pull_request.number }}"
           short_sha="${GITHUB_SHA:0:7}"
-          beta_tag="v${beta_version}-beta.pr${pr_number}.${short_sha}"
+          beta_tag="${beta_version}-beta.pr${pr_number}.${short_sha}"
 
           echo "Creating beta release: $beta_tag"
 
@@ -139,7 +139,7 @@ jobs:
 
           # Create new beta
           gh release create "$beta_tag" \
-            --title="🧪 v${beta_version} Beta (PR #${pr_number})" \
+            --title="🧪 ${beta_version} Beta (PR #${pr_number})" \
             --notes="## Beta Release
 
           Automated beta for PR #${pr_number}.
@@ -167,7 +167,7 @@ jobs:
           bump_type="${{ needs.validate.outputs.bump_type }}"
           pr_number="${{ github.event.pull_request.number }}"
           short_sha="${GITHUB_SHA:0:7}"
-          beta_tag="v${beta_version}-beta.pr${pr_number}.${short_sha}"
+          beta_tag="${beta_version}-beta.pr${pr_number}.${short_sha}"
 
           # Delete previous beta comments
           existing=$(gh api repos/${{ github.repository }}/issues/${pr_number}/comments \
