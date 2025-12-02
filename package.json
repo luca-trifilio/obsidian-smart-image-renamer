@@ -1,6 +1,6 @@
 {
   "name": "obsidian-smart-image-renamer",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "description": "Automatically rename pasted images based on the active note's filename",
   "main": "main.js",
   "scripts": {
