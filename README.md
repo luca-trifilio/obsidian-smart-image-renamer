@@ -1,114 +1,78 @@
 # Smart Image Renamer
 
-An Obsidian plugin that automatically renames pasted images based on the active note's filename.
+Tired of `Pasted image 20231201123456.png` cluttering your vault? This Obsidian plugin automatically renames pasted images to match your note's name.
 
 ## Features
 
-### Automatic Image Renaming on Paste
+### Automatic Renaming on Paste
 
-When you paste an image into a note:
-1. The plugin intercepts the paste event
-2. Renames the image to `{NoteName} {suffix}.{ext}` (e.g., "My Meeting 1.png")
-3. Saves it to your configured attachment folder
-4. Inserts the markdown link at cursor position
+When you paste an image into a note, it's automatically renamed to `{NoteName} {suffix}.{ext}`.
 
-Sequential numbering ensures no overwrites — if "My Meeting 1.png" exists, it creates "My Meeting 2.png".
+**Example:** Pasting into "Meeting Notes.md" creates `Meeting Notes 1.png`, `Meeting Notes 2.png`, etc.
 
-### Auto-Rename on Drag & Drop
+### Drag & Drop Support
 
-Images dropped into notes or Excalidraw drawings are automatically renamed using the same logic as paste.
+Images dropped into notes or Excalidraw drawings are renamed using the same logic.
 
-### Manual Image Renaming
+### Manual Rename
 
-Right-click on any image (either the rendered image or the `![[image.png]]` link) and select **"Rename image"** to rename it. The plugin automatically:
-- Updates all references to the image across your vault
-- Sanitizes the filename to remove invalid characters
+Right-click any image and select **"Rename image"** to rename it manually. All references across your vault are updated automatically.
 
 ### Bulk Rename
 
-Use the command palette:
-- **Rename images in current note** - Rename all images linked in the current note
-- **Rename all images in vault** - Rename all images across your vault
+Clean up existing images via command palette:
+- **Rename images in current note**
+- **Rename all images in vault**
 
-Filter by "generic names" (Pasted image, Screenshot, IMG_001...) and choose rename mode:
-- **Replace**: Use note name with sequential suffix
-- **Prepend**: Add note name before original name
-- **Pattern**: Custom pattern with `{note}`, `{original}`, `{n}` placeholders
+Filter by generic names (Pasted image, Screenshot, IMG_...) and choose:
+- **Replace**: Note name + sequential number
+- **Prepend**: Note name + original name
+- **Pattern**: Custom with `{note}`, `{original}`, `{n}` placeholders
 
 ### Find Orphaned Images
 
-Find and clean up images not referenced by any note, canvas, or Excalidraw file:
-- Command: **Find orphaned images**
-- Shows thumbnails, file sizes, and paths
-- **Delete**: Move selected to system trash (recoverable)
-- **Move**: Relocate to a folder (default: `_orphaned`)
+Find images not referenced anywhere and delete or move them to a folder.
 
 ### Suffix Modes
 
-Choose how images are numbered:
-
 | Mode | Example |
 |------|---------|
-| **Sequential** (default) | `My Note 1.png`, `My Note 2.png`, ... |
+| **Sequential** (default) | `My Note 1.png`, `My Note 2.png` |
 | **Timestamp** | `My Note 20251201-143052.png` |
-
-Timestamp format is customizable (e.g., `YYYY-MM-DD_HH-mm-ss`).
 
 ### Filename Sanitization
 
-The plugin sanitizes filenames to ensure compatibility:
-
-| Setting | Input | Output |
-|---------|-------|--------|
-| **Off** (default) | `Caffè & Città` | `Caffè & Città` (only invalid chars removed) |
+| Mode | Input | Output |
+|------|-------|--------|
+| **Normal** (default) | `Caffè & Città` | `Caffè & Città` |
 | **Aggressive** | `Caffè & Città` | `caffe_citta` |
 
-**Aggressive mode** converts to URL-friendly format:
-- Lowercase
-- Spaces → underscores
-- Accents removed (é → e, ñ → n)
-
-This is useful if you sync your vault with systems that don't handle special characters well.
+Aggressive mode is useful when syncing with systems that don't handle special characters.
 
 ## Installation
 
-### From Community Plugins (recommended)
-1. Open Settings → Community plugins
-2. Search for "Smart Image Renamer"
-3. Install and enable
+### Manual / BRAT
 
-### Manual
-1. Download `main.js` and `manifest.json` from the latest release
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/luca-trifilio/obsidian-smart-image-renamer/releases/latest)
 2. Create folder: `{vault}/.obsidian/plugins/smart-image-renamer/`
 3. Copy files into the folder
 4. Reload Obsidian and enable the plugin
+
+Or use [BRAT](https://github.com/TfTHacker/obsidian42-brat) with: `luca-trifilio/obsidian-smart-image-renamer`
 
 ## Settings
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| **Suffix mode** | Sequential (1, 2, 3...) or Timestamp | Sequential |
-| **Timestamp format** | Format for timestamp suffix | `YYYYMMDD-HHmmss` |
-| **Aggressive sanitization** | Convert to URL-friendly filenames | Off |
+| Suffix mode | Sequential or Timestamp | Sequential |
+| Timestamp format | Format string for timestamp mode | `YYYYMMDD-HHmmss` |
+| Aggressive sanitization | URL-friendly filenames | Off |
 
-## How It Works
+## Compatibility
 
-- Respects Obsidian's attachment folder settings (same folder, subfolder, or specific folder)
 - Works on desktop and mobile
-- Uses Obsidian's built-in `fileManager.renameFile()` to update all references automatically
-
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Build for production
-npm run build
-
-# Watch mode for development
-npm run dev
-```
+- Respects your attachment folder settings
+- Supports Excalidraw
 
 ## License
 
