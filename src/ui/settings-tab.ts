@@ -1,6 +1,7 @@
 import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { SmartImageRenamerSettings } from '../types/settings';
 import { TIMESTAMP_PRESETS, formatTimestamp } from '../utils';
+import { t } from '../i18n';
 
 export interface SettingsProvider {
 	settings: SmartImageRenamerSettings;
@@ -21,11 +22,11 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 
 		// Suffix Mode
 		new Setting(containerEl)
-			.setName('Suffix mode')
-			.setDesc('How to generate the suffix for image filenames')
+			.setName(t('settings.suffixMode.name'))
+			.setDesc(t('settings.suffixMode.desc'))
 			.addDropdown(dropdown => dropdown
-				.addOption('sequential', 'Sequential (1, 2, 3...)')
-				.addOption('timestamp', 'Timestamp')
+				.addOption('sequential', t('settings.suffixMode.sequential'))
+				.addOption('timestamp', t('settings.suffixMode.timestamp'))
 				.setValue(this.provider.settings.suffixMode)
 				.onChange(async (value: 'sequential' | 'timestamp') => {
 					this.provider.settings.suffixMode = value;
@@ -40,8 +41,8 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 			);
 
 			new Setting(containerEl)
-				.setName('Timestamp format')
-				.setDesc('Choose a preset or custom format')
+				.setName(t('settings.timestampFormat.name'))
+				.setDesc(t('settings.timestampFormat.desc'))
 				.addDropdown(dropdown => {
 					TIMESTAMP_PRESETS.forEach(preset => {
 						dropdown.addOption(preset.value, preset.label);
@@ -61,8 +62,8 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 			// Show custom format field if custom is selected
 			if (isCustom) {
 				new Setting(containerEl)
-					.setName('Custom format')
-					.setDesc('Supports year, month, day, hour, minute, second tokens')
+					.setName(t('settings.customFormat.name'))
+					.setDesc(t('settings.customFormat.desc'))
 					.addText(text => {
 						text.setValue(this.provider.settings.timestampFormat)
 							.setPlaceholder('20240101-120000')
@@ -76,11 +77,8 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 
 		// Auto-rename on create
 		new Setting(containerEl)
-			.setName('Auto-rename images from any source')
-			.setDesc(
-				'Automatically rename images with generic names (Pasted image, Screenshot, etc.) ' +
-				'when created from any source: drag & drop, Excalidraw, or other plugins.'
-			)
+			.setName(t('settings.autoRename.name'))
+			.setDesc(t('settings.autoRename.desc'))
 			.addToggle(toggle => toggle
 				.setValue(this.provider.settings.autoRenameOnCreate)
 				.onChange(async (value) => {
@@ -90,14 +88,11 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 
 		// Suffixes to remove
 		new Setting(containerEl)
-			.setName('Suffixes to remove from note names')
-			.setDesc(
-				'Comma-separated list of suffixes to strip from note names. ' +
-				'Example: .excalidraw,.canvas (removes ".excalidraw" from "Drawing.excalidraw.md")'
-			)
+			.setName(t('settings.suffixesToRemove.name'))
+			.setDesc(t('settings.suffixesToRemove.desc'))
 			.addText(text => text
 				.setValue(this.provider.settings.suffixesToRemove.join(', '))
-				.setPlaceholder('Suffixes to strip')
+				.setPlaceholder(t('settings.suffixesToRemove.placeholder'))
 				.onChange(async (value) => {
 					this.provider.settings.suffixesToRemove = value
 						.split(',')
@@ -108,13 +103,8 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 
 		// Aggressive Sanitization Toggle
 		new Setting(containerEl)
-			.setName('Aggressive filename sanitization')
-			.setDesc(
-				'When enabled, filenames are converted to URL-friendly format: ' +
-				'lowercase, spaces → underscores, accents removed (é → e). ' +
-				'When disabled, only invalid filesystem characters are removed. ' +
-				'This applies to both pasted images and manual renames.'
-			)
+			.setName(t('settings.aggressiveSanitization.name'))
+			.setDesc(t('settings.aggressiveSanitization.desc'))
 			.addToggle(toggle => toggle
 				.setValue(this.provider.settings.aggressiveSanitization)
 				.onChange(async (value) => {
@@ -124,7 +114,7 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 				}));
 
 		// Preview
-		new Setting(containerEl).setName("Preview").setHeading();
+		new Setting(containerEl).setName(t('settings.preview')).setHeading();
 		const previewEl = containerEl.createEl('p', { cls: 'setting-item-description' });
 		this.updatePreview(previewEl);
 	}
@@ -141,6 +131,6 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 			suffix = '1';
 		}
 
-		el.setText(`Example: ${exampleNote} ${suffix}.png`);
+		el.setText(t('settings.previewExample', { example: `${exampleNote} ${suffix}.png` }));
 	}
 }

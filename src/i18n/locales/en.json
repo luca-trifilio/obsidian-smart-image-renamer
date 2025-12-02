@@ -1,0 +1,139 @@
+{
+	"commands": {
+		"renameInNote": "Rename images in current note",
+		"renameInVault": "Rename all images in vault",
+		"findOrphaned": "Find orphaned images"
+	},
+	"settings": {
+		"suffixMode": {
+			"name": "Suffix mode",
+			"desc": "How to generate the suffix for image filenames",
+			"sequential": "Sequential (1, 2, 3...)",
+			"timestamp": "Timestamp"
+		},
+		"timestampFormat": {
+			"name": "Timestamp format",
+			"desc": "Choose a preset or custom format"
+		},
+		"customFormat": {
+			"name": "Custom format",
+			"desc": "Supports year, month, day, hour, minute, second tokens"
+		},
+		"autoRename": {
+			"name": "Auto-rename images from any source",
+			"desc": "Automatically rename images with generic names (Pasted image, Screenshot, etc.) when created from any source: drag & drop, Excalidraw, or other plugins."
+		},
+		"suffixesToRemove": {
+			"name": "Suffixes to remove from note names",
+			"desc": "Comma-separated list of suffixes to strip from note names. Example: .excalidraw,.canvas (removes \".excalidraw\" from \"Drawing.excalidraw.md\")",
+			"placeholder": "Suffixes to strip"
+		},
+		"aggressiveSanitization": {
+			"name": "Aggressive filename sanitization",
+			"desc": "When enabled, filenames are converted to URL-friendly format: lowercase, spaces → underscores, accents removed (é → e). When disabled, only invalid filesystem characters are removed. This applies to both pasted images and manual renames."
+		},
+		"preview": "Preview",
+		"previewExample": "Example: {{example}}"
+	},
+	"notices": {
+		"noImagesInNote": "No images found in current note",
+		"noImagesInVault": "No images found in vault",
+		"allImagesCorrect": "All images are already correctly named!",
+		"noOrphanedImages": "No orphaned images found. Your vault is clean!",
+		"invalidFilename": "Invalid filename",
+		"renamedTo": "Renamed to {{name}}",
+		"failedToRename": "Failed to rename: {{error}}",
+		"imageNotFound": "Image not found: {{name}}",
+		"noActiveFile": "No active file found",
+		"imageSavedAs": "Image saved as {{name}}",
+		"failedToSave": "Failed to save image: {{error}}",
+		"autoRenamedTo": "Auto-renamed to {{name}}",
+		"autoRenameExistsError": "Could not auto-rename \"{{name}}\" - a file with that name already exists. Right-click on the image to rename it manually.",
+		"failedToAutoRename": "Failed to auto-rename: {{error}}",
+		"noImagesSelected": "No images selected",
+		"successfullyRenamed_one": "Successfully renamed {{count}} image",
+		"successfullyRenamed_other": "Successfully renamed {{count}} images",
+		"renamedWithErrors": "Renamed {{success}}, failed {{failed}}. Check console for details.",
+		"deleted_one": "Deleted {{count}} image (moved to trash)",
+		"deleted_other": "Deleted {{count}} images (moved to trash)",
+		"deletedWithErrors": "Deleted {{success}}, failed {{failed}}. Check console.",
+		"moved_one": "Moved {{count}} image to {{folder}}/",
+		"moved_other": "Moved {{count}} images to {{folder}}/",
+		"movedWithErrors": "Moved {{success}}, failed {{failed}}. Check console."
+	},
+	"menu": {
+		"renameImage": "Rename image"
+	},
+	"bulkRename": {
+		"title": "Bulk rename images",
+		"scope": {
+			"name": "Scope",
+			"desc": "Where to search for images",
+			"note": "Current note",
+			"vault": "Entire vault"
+		},
+		"filter": {
+			"name": "Filter",
+			"desc": "Which images to include",
+			"generic": "Only generic names (pasted, screenshot...)",
+			"all": "All images"
+		},
+		"mode": {
+			"name": "Rename mode",
+			"desc": "How to generate new names",
+			"replace": "Use note name (note 1, note 2...)",
+			"prepend": "Prepend note name (note - original)",
+			"pattern": "Custom pattern"
+		},
+		"pattern": {
+			"name": "Pattern",
+			"desc": "Use {note}, {original}, {n} as placeholders"
+		},
+		"selectAll": "Select all",
+		"selectNone": "Select none",
+		"renameSelected": "Rename selected",
+		"cancel": "Cancel",
+		"scanning": "Scanning...",
+		"noImagesFound": "No images found matching the filter.",
+		"foundImages_one": "Found {{count}} image to rename:",
+		"foundImages_other": "Found {{count}} images to rename:",
+		"orphanImages_one": "{{count}} orphan image (not linked):",
+		"orphanImages_other": "{{count}} orphan images (not linked):",
+		"manageOrphans": "Manage orphans →",
+		"renaming_one": "Renaming {{count}} image...",
+		"renaming_other": "Renaming {{count}} images...",
+		"tagGeneric": "auto",
+		"tagOrphan": "orphan",
+		"inNote": "in"
+	},
+	"orphanedImages": {
+		"title": "Orphaned images",
+		"stats_one": "Found {{count}} orphaned image ({{size}} total)",
+		"stats_other": "Found {{count}} orphaned images ({{size}} total)",
+		"hint": "These images are not linked from any note, canvas, or Excalidraw file.",
+		"empty": "No orphaned images found. Your vault is clean!",
+		"selectedCount": "{{count}} selected",
+		"moveFolder": {
+			"name": "Move folder",
+			"desc": "Folder to move orphaned images to"
+		},
+		"deleteSelected": "Delete selected",
+		"moveSelected": "Move selected",
+		"deleting_one": "Deleting {{count}} image...",
+		"deleting_other": "Deleting {{count}} images...",
+		"moving_one": "Moving {{count}} image to {{folder}}/...",
+		"moving_other": "Moving {{count}} images to {{folder}}/..."
+	},
+	"confirmDelete": {
+		"title": "Confirm deletion",
+		"message_one": "Are you sure you want to delete {{count}} image?",
+		"message_other": "Are you sure you want to delete {{count}} images?",
+		"hint": "Files will be moved to your system trash and can be recovered.",
+		"delete": "Delete"
+	},
+	"renameModal": {
+		"title": "Rename image",
+		"current": "Current: {{name}}",
+		"rename": "Rename"
+	}
+}

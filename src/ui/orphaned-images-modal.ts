@@ -1,6 +1,7 @@
 import { App, Modal, Notice, Setting } from 'obsidian';
 import { BulkRenameService } from '../services/bulk-rename-service';
 import { OrphanedImage, OrphanScanResult } from '../types/bulk-rename';
+import { t } from '../i18n';
 
 export class OrphanedImagesModal extends Modal {
 	private service: BulkRenameService;
@@ -31,7 +32,7 @@ export class OrphanedImagesModal extends Modal {
 	private renderHeader(): void {
 		const { contentEl } = this;
 
-		new Setting(contentEl).setName('Orphaned images').setHeading();
+		new Setting(contentEl).setName(t('orphanedImages.title')).setHeading();
 
 		const statsDiv = contentEl.createDiv({ cls: 'orphaned-images-stats' });
 		const totalSize = this.formatSize(
@@ -39,11 +40,11 @@ export class OrphanedImagesModal extends Modal {
 		);
 
 		statsDiv.createEl('p', {
-			text: `Found ${this.orphanedImages.length} orphaned image${this.orphanedImages.length !== 1 ? 's' : ''} (${totalSize} total)`,
+			text: t('orphanedImages.stats', { count: this.orphanedImages.length, size: totalSize }),
 		});
 
 		statsDiv.createEl('p', {
-			text: 'These images are not linked from any note, canvas, or Excalidraw file.',
+			text: t('orphanedImages.hint'),
 			cls: 'orphaned-images-hint',
 		});
 	}
@@ -53,7 +54,7 @@ export class OrphanedImagesModal extends Modal {
 
 		if (this.orphanedImages.length === 0) {
 			this.listContainer.createEl('p', {
-				text: 'No orphaned images found. Your vault is clean!',
+				text: t('orphanedImages.empty'),
 				cls: 'orphaned-images-empty',
 			});
 			return;
@@ -114,13 +115,13 @@ export class OrphanedImagesModal extends Modal {
 		const selectDiv = footerDiv.createDiv({ cls: 'orphaned-images-select-actions' });
 
 		const selectAllBtn = selectDiv.createEl('button', {
-			text: 'Select all',
+			text: t('bulkRename.selectAll'),
 			cls: 'mod-muted',
 		});
 		selectAllBtn.addEventListener('click', () => this.selectAll(true));
 
 		const selectNoneBtn = selectDiv.createEl('button', {
-			text: 'Select none',
+			text: t('bulkRename.selectNone'),
 			cls: 'mod-muted',
 		});
 		selectNoneBtn.addEventListener('click', () => this.selectAll(false));
@@ -130,8 +131,8 @@ export class OrphanedImagesModal extends Modal {
 
 		// Move folder input
 		new Setting(footerDiv)
-			.setName('Move folder')
-			.setDesc('Folder to move orphaned images to')
+			.setName(t('orphanedImages.moveFolder.name'))
+			.setDesc(t('orphanedImages.moveFolder.desc'))
 			.addText((text) => {
 				text
 					.setValue(this.targetFolder)
@@ -146,20 +147,20 @@ export class OrphanedImagesModal extends Modal {
 
 		buttonSetting.addButton((btn) =>
 			btn
-				.setButtonText('Delete selected')
+				.setButtonText(t('orphanedImages.deleteSelected'))
 				.setWarning()
 				.onClick(() => this.confirmDelete())
 		);
 
 		buttonSetting.addButton((btn) =>
 			btn
-				.setButtonText('Move selected')
+				.setButtonText(t('orphanedImages.moveSelected'))
 				.setCta()
 				.onClick(() => this.executeMove())
 		);
 
 		buttonSetting.addButton((btn) =>
-			btn.setButtonText('Cancel').onClick(() => this.close())
+			btn.setButtonText(t('bulkRename.cancel')).onClick(() => this.close())
 		);
 	}
 
@@ -168,7 +169,7 @@ export class OrphanedImagesModal extends Modal {
 	private updateSelectedCount(): void {
 		const count = this.orphanedImages.filter((img) => img.selected).length;
 		if (this.selectedCountEl) {
-			this.selectedCountEl.setText(`${count} selected`);
+			this.selectedCountEl.setText(t('orphanedImages.selectedCount', { count }));
 		}
 	}
 
@@ -184,7 +185,7 @@ export class OrphanedImagesModal extends Modal {
 		const selectedCount = this.orphanedImages.filter((img) => img.selected).length;
 
 		if (selectedCount === 0) {
-			new Notice('No images selected');
+			new Notice(t('notices.noImagesSelected'));
 			return;
 		}
 
@@ -202,16 +203,16 @@ export class OrphanedImagesModal extends Modal {
 
 		this.listContainer.empty();
 		this.listContainer.createEl('p', {
-			text: `Deleting ${selectedCount} image${selectedCount !== 1 ? 's' : ''}...`,
+			text: t('orphanedImages.deleting', { count: selectedCount }),
 			cls: 'orphaned-images-progress',
 		});
 
 		const result = await this.service.deleteOrphanedImages(this.orphanedImages);
 
 		if (result.failed === 0) {
-			new Notice(`Deleted ${result.success} image${result.success !== 1 ? 's' : ''} (moved to trash)`);
+			new Notice(t('notices.deleted', { count: result.success }));
 		} else {
-			new Notice(`Deleted ${result.success}, failed ${result.failed}. Check console.`);
+			new Notice(t('notices.deletedWithErrors', { success: result.success, failed: result.failed }));
 			console.error('Orphan delete errors:', result.errors);
 		}
 
@@ -222,13 +223,13 @@ export class OrphanedImagesModal extends Modal {
 		const selectedCount = this.orphanedImages.filter((img) => img.selected).length;
 
 		if (selectedCount === 0) {
-			new Notice('No images selected');
+			new Notice(t('notices.noImagesSelected'));
 			return;
 		}
 
 		this.listContainer.empty();
 		this.listContainer.createEl('p', {
-			text: `Moving ${selectedCount} image${selectedCount !== 1 ? 's' : ''} to ${this.targetFolder}/...`,
+			text: t('orphanedImages.moving', { count: selectedCount, folder: this.targetFolder }),
 			cls: 'orphaned-images-progress',
 		});
 
@@ -238,9 +239,9 @@ export class OrphanedImagesModal extends Modal {
 		);
 
 		if (result.failed === 0) {
-			new Notice(`Moved ${result.success} image${result.success !== 1 ? 's' : ''} to ${this.targetFolder}/`);
+			new Notice(t('notices.moved', { count: result.success, folder: this.targetFolder }));
 		} else {
-			new Notice(`Moved ${result.success}, failed ${result.failed}. Check console.`);
+			new Notice(t('notices.movedWithErrors', { success: result.success, failed: result.failed }));
 			console.error('Orphan move errors:', result.errors);
 		}
 
@@ -275,21 +276,21 @@ class ConfirmDeleteModal extends Modal {
 		const { contentEl } = this;
 		contentEl.addClass('confirm-delete-modal');
 
-		new Setting(contentEl).setName('Confirm deletion').setHeading();
+		new Setting(contentEl).setName(t('confirmDelete.title')).setHeading();
 
 		contentEl.createEl('p', {
-			text: `Are you sure you want to delete ${this.count} image${this.count !== 1 ? 's' : ''}?`,
+			text: t('confirmDelete.message', { count: this.count }),
 		});
 
 		contentEl.createEl('p', {
-			text: 'Files will be moved to your system trash and can be recovered.',
+			text: t('confirmDelete.hint'),
 			cls: 'confirm-delete-hint',
 		});
 
 		new Setting(contentEl)
 			.addButton((btn) =>
 				btn
-					.setButtonText('Delete')
+					.setButtonText(t('confirmDelete.delete'))
 					.setWarning()
 					.onClick(() => {
 						this.close();
@@ -297,7 +298,7 @@ class ConfirmDeleteModal extends Modal {
 					})
 			)
 			.addButton((btn) =>
-				btn.setButtonText('Cancel').onClick(() => this.close())
+				btn.setButtonText(t('bulkRename.cancel')).onClick(() => this.close())
 			);
 	}
 

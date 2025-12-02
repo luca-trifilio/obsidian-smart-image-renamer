@@ -10,6 +10,7 @@ import {
 	removeNoteSuffixes
 } from './src/utils';
 import { BulkRenameScope } from './src/types/bulk-rename';
+import { t } from './src/i18n';
 
 export default class SmartImageRenamer extends Plugin {
 	settings: SmartImageRenamerSettings;
@@ -36,7 +37,7 @@ export default class SmartImageRenamer extends Plugin {
 		// Register commands
 		this.addCommand({
 			id: 'bulk-rename-current-note',
-			name: 'Rename images in current note',
+			name: t('commands.renameInNote'),
 			checkCallback: (checking: boolean) => {
 				const activeFile = this.app.workspace.getActiveFile();
 				if (activeFile?.extension === 'md') {
@@ -51,7 +52,7 @@ export default class SmartImageRenamer extends Plugin {
 
 		this.addCommand({
 			id: 'bulk-rename-vault',
-			name: 'Rename all images in vault',
+			name: t('commands.renameInVault'),
 			callback: () => {
 				const activeFile = this.app.workspace.getActiveFile();
 				this.openBulkRenameModal(activeFile, 'vault');
@@ -60,7 +61,7 @@ export default class SmartImageRenamer extends Plugin {
 
 		this.addCommand({
 			id: 'find-orphaned-images',
-			name: 'Find orphaned images',
+			name: t('commands.findOrphaned'),
 			callback: () => this.openOrphanedImagesModal(),
 		});
 
@@ -131,13 +132,13 @@ export default class SmartImageRenamer extends Plugin {
 		if (scope === 'note' && activeFile) {
 			images = this.bulkRenameService.scanImagesInNote(activeFile);
 			if (images.length === 0) {
-				new Notice('No images found in current note');
+				new Notice(t('notices.noImagesInNote'));
 				return;
 			}
 		} else if (scope === 'vault') {
 			images = this.bulkRenameService.scanImagesInVault();
 			if (images.length === 0) {
-				new Notice('No images found in vault');
+				new Notice(t('notices.noImagesInVault'));
 				return;
 			}
 		}
@@ -146,7 +147,7 @@ export default class SmartImageRenamer extends Plugin {
 		if (images && images.length > 0) {
 			const preview = this.bulkRenameService.generatePreview(images, 'replace', 'all');
 			if (preview.length === 0) {
-				new Notice('All images are already correctly named!');
+				new Notice(t('notices.allImagesCorrect'));
 				return;
 			}
 		}
@@ -163,7 +164,7 @@ export default class SmartImageRenamer extends Plugin {
 		const result = this.bulkRenameService.findOrphanedImages();
 
 		if (result.orphaned.length === 0) {
-			new Notice('No orphaned images found. Your vault is clean!');
+			new Notice(t('notices.noOrphanedImages'));
 			return;
 		}
 
@@ -197,7 +198,7 @@ export default class SmartImageRenamer extends Plugin {
 		if (this.pendingImageFile) {
 			const file = this.pendingImageFile;
 			menu.addItem((item) => {
-				item.setTitle('Rename image')
+				item.setTitle(t('menu.renameImage'))
 					.setIcon('pencil')
 					.onClick(() => this.openRenameModal(file));
 			});
@@ -212,7 +213,7 @@ export default class SmartImageRenamer extends Plugin {
 		if (!imageLink) return;
 
 		menu.addItem((item) => {
-			item.setTitle('Rename image')
+			item.setTitle(t('menu.renameImage'))
 				.setIcon('pencil')
 				.onClick(() => this.renameImageFromLink(imageLink, info));
 		});
@@ -222,15 +223,15 @@ export default class SmartImageRenamer extends Plugin {
 		new RenameImageModal(this.app, file, async (newName) => {
 			const sanitized = sanitizeFilename(newName, this.settings.aggressiveSanitization);
 			if (!sanitized) {
-				new Notice('Invalid filename');
+				new Notice(t('notices.invalidFilename'));
 				return;
 			}
 
 			try {
 				const newFileName = await this.fileService.renameFile(file, sanitized);
-				new Notice(`Renamed to ${newFileName}`);
+				new Notice(t('notices.renamedTo', { name: newFileName }));
 			} catch (error) {
-				new Notice(`Failed to rename: ${String(error)}`);
+				new Notice(t('notices.failedToRename', { error: String(error) }));
 			}
 		}).open();
 	}
@@ -238,7 +239,7 @@ export default class SmartImageRenamer extends Plugin {
 	private async renameImageFromLink(imageName: string, info: MarkdownView | MarkdownFileInfo): Promise<void> {
 		const file = this.fileService.resolveImageLink(imageName, info.file?.path || '');
 		if (!file) {
-			new Notice(`Image not found: ${imageName}`);
+			new Notice(t('notices.imageNotFound', { name: imageName }));
 			return;
 		}
 
@@ -260,7 +261,7 @@ export default class SmartImageRenamer extends Plugin {
 
 		const activeFile = info.file;
 		if (!activeFile) {
-			new Notice('No active file found');
+			new Notice(t('notices.noActiveFile'));
 			return;
 		}
 
@@ -271,10 +272,10 @@ export default class SmartImageRenamer extends Plugin {
 			setTimeout(() => this.processingFiles.delete(result.fileName), 1000);
 
 			this.imageProcessor.insertMarkdownLink(editor, result.markdownLink);
-			new Notice(`Image saved as ${result.fileName}`);
+			new Notice(t('notices.imageSavedAs', { name: result.fileName }));
 		} catch (error) {
 			console.error('Smart Image Renamer error:', error);
-			new Notice(`Failed to save image: ${error}`);
+			new Notice(t('notices.failedToSave', { error: String(error) }));
 		}
 	}
 
@@ -333,7 +334,7 @@ export default class SmartImageRenamer extends Plugin {
 
 		const activeFile = info.file;
 		if (!activeFile) {
-			new Notice('No active file found');
+			new Notice(t('notices.noActiveFile'));
 			return;
 		}
 
@@ -346,10 +347,10 @@ export default class SmartImageRenamer extends Plugin {
 				setTimeout(() => this.processingFiles.delete(result.fileName), 1000);
 
 				this.imageProcessor.insertMarkdownLink(editor, result.markdownLink);
-				new Notice(`Image saved as ${result.fileName}`);
+				new Notice(t('notices.imageSavedAs', { name: result.fileName }));
 			} catch (error) {
 				console.error('Smart Image Renamer error:', error);
-				new Notice(`Failed to save image: ${error}`);
+				new Notice(t('notices.failedToSave', { error: String(error) }));
 			}
 		}
 	}
@@ -423,20 +424,16 @@ export default class SmartImageRenamer extends Plugin {
 			const newBaseName = newFileName.replace(`.${file.extension}`, '');
 
 			await this.fileService.renameFile(file, newBaseName);
-			new Notice(`Auto-renamed to ${newFileName}`);
+			new Notice(t('notices.autoRenamedTo', { name: newFileName }));
 		} catch (error) {
 			console.error('[Smart Image Renamer] Auto-rename error:', error);
 
 			// Handle "file already exists" error
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			if (errorMessage.includes('already exists')) {
-				new Notice(
-					`Could not auto-rename "${file.name}" - a file with that name already exists. ` +
-					`Right-click on the image to rename it manually.`,
-					5000
-				);
+				new Notice(t('notices.autoRenameExistsError', { name: file.name }), 5000);
 			} else {
-				new Notice(`Failed to auto-rename: ${errorMessage}`);
+				new Notice(t('notices.failedToAutoRename', { error: errorMessage }));
 			}
 		} finally {
 			this.processingFiles.delete(file.path);

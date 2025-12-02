@@ -1,0 +1,139 @@
+{
+	"commands": {
+		"renameInNote": "Rinomina immagini nella nota corrente",
+		"renameInVault": "Rinomina tutte le immagini nel vault",
+		"findOrphaned": "Trova immagini orfane"
+	},
+	"settings": {
+		"suffixMode": {
+			"name": "Modalità suffisso",
+			"desc": "Come generare il suffisso per i nomi dei file immagine",
+			"sequential": "Sequenziale (1, 2, 3...)",
+			"timestamp": "Timestamp"
+		},
+		"timestampFormat": {
+			"name": "Formato timestamp",
+			"desc": "Scegli un preset o un formato personalizzato"
+		},
+		"customFormat": {
+			"name": "Formato personalizzato",
+			"desc": "Supporta token per anno, mese, giorno, ora, minuto, secondo"
+		},
+		"autoRename": {
+			"name": "Rinomina automaticamente da qualsiasi fonte",
+			"desc": "Rinomina automaticamente le immagini con nomi generici (Pasted image, Screenshot, ecc.) quando create da qualsiasi fonte: drag & drop, Excalidraw o altri plugin."
+		},
+		"suffixesToRemove": {
+			"name": "Suffissi da rimuovere dai nomi delle note",
+			"desc": "Lista di suffissi separati da virgola da rimuovere dai nomi delle note. Esempio: .excalidraw,.canvas (rimuove \".excalidraw\" da \"Drawing.excalidraw.md\")",
+			"placeholder": "Suffissi da rimuovere"
+		},
+		"aggressiveSanitization": {
+			"name": "Sanitizzazione aggressiva dei nomi file",
+			"desc": "Se abilitato, i nomi file vengono convertiti in formato URL-friendly: minuscolo, spazi → underscore, accenti rimossi (é → e). Se disabilitato, vengono rimossi solo i caratteri non validi per il filesystem. Si applica sia alle immagini incollate che alle rinominazioni manuali."
+		},
+		"preview": "Anteprima",
+		"previewExample": "Esempio: {{example}}"
+	},
+	"notices": {
+		"noImagesInNote": "Nessuna immagine trovata nella nota corrente",
+		"noImagesInVault": "Nessuna immagine trovata nel vault",
+		"allImagesCorrect": "Tutte le immagini hanno già nomi corretti!",
+		"noOrphanedImages": "Nessuna immagine orfana trovata. Il tuo vault è pulito!",
+		"invalidFilename": "Nome file non valido",
+		"renamedTo": "Rinominato in {{name}}",
+		"failedToRename": "Impossibile rinominare: {{error}}",
+		"imageNotFound": "Immagine non trovata: {{name}}",
+		"noActiveFile": "Nessun file attivo trovato",
+		"imageSavedAs": "Immagine salvata come {{name}}",
+		"failedToSave": "Impossibile salvare l'immagine: {{error}}",
+		"autoRenamedTo": "Rinominata automaticamente in {{name}}",
+		"autoRenameExistsError": "Impossibile rinominare automaticamente \"{{name}}\" - esiste già un file con quel nome. Fai clic destro sull'immagine per rinominarla manualmente.",
+		"failedToAutoRename": "Impossibile rinominare automaticamente: {{error}}",
+		"noImagesSelected": "Nessuna immagine selezionata",
+		"successfullyRenamed_one": "Rinominata {{count}} immagine",
+		"successfullyRenamed_other": "Rinominate {{count}} immagini",
+		"renamedWithErrors": "Rinominate {{success}}, fallite {{failed}}. Controlla la console per i dettagli.",
+		"deleted_one": "Eliminata {{count}} immagine (spostata nel cestino)",
+		"deleted_other": "Eliminate {{count}} immagini (spostate nel cestino)",
+		"deletedWithErrors": "Eliminate {{success}}, fallite {{failed}}. Controlla la console.",
+		"moved_one": "Spostata {{count}} immagine in {{folder}}/",
+		"moved_other": "Spostate {{count}} immagini in {{folder}}/",
+		"movedWithErrors": "Spostate {{success}}, fallite {{failed}}. Controlla la console."
+	},
+	"menu": {
+		"renameImage": "Rinomina immagine"
+	},
+	"bulkRename": {
+		"title": "Rinomina immagini in blocco",
+		"scope": {
+			"name": "Ambito",
+			"desc": "Dove cercare le immagini",
+			"note": "Nota corrente",
+			"vault": "Intero vault"
+		},
+		"filter": {
+			"name": "Filtro",
+			"desc": "Quali immagini includere",
+			"generic": "Solo nomi generici (pasted, screenshot...)",
+			"all": "Tutte le immagini"
+		},
+		"mode": {
+			"name": "Modalità rinomina",
+			"desc": "Come generare i nuovi nomi",
+			"replace": "Usa nome nota (nota 1, nota 2...)",
+			"prepend": "Anteponi nome nota (nota - originale)",
+			"pattern": "Pattern personalizzato"
+		},
+		"pattern": {
+			"name": "Pattern",
+			"desc": "Usa {note}, {original}, {n} come placeholder"
+		},
+		"selectAll": "Seleziona tutto",
+		"selectNone": "Deseleziona tutto",
+		"renameSelected": "Rinomina selezionate",
+		"cancel": "Annulla",
+		"scanning": "Scansione...",
+		"noImagesFound": "Nessuna immagine trovata con il filtro selezionato.",
+		"foundImages_one": "Trovata {{count}} immagine da rinominare:",
+		"foundImages_other": "Trovate {{count}} immagini da rinominare:",
+		"orphanImages_one": "{{count}} immagine orfana (non collegata):",
+		"orphanImages_other": "{{count}} immagini orfane (non collegate):",
+		"manageOrphans": "Gestisci orfane →",
+		"renaming_one": "Rinomina {{count}} immagine...",
+		"renaming_other": "Rinomina {{count}} immagini...",
+		"tagGeneric": "auto",
+		"tagOrphan": "orfana",
+		"inNote": "in"
+	},
+	"orphanedImages": {
+		"title": "Immagini orfane",
+		"stats_one": "Trovata {{count}} immagine orfana ({{size}} totali)",
+		"stats_other": "Trovate {{count}} immagini orfane ({{size}} totali)",
+		"hint": "Queste immagini non sono collegate da nessuna nota, canvas o file Excalidraw.",
+		"empty": "Nessuna immagine orfana trovata. Il tuo vault è pulito!",
+		"selectedCount": "{{count}} selezionate",
+		"moveFolder": {
+			"name": "Cartella destinazione",
+			"desc": "Cartella in cui spostare le immagini orfane"
+		},
+		"deleteSelected": "Elimina selezionate",
+		"moveSelected": "Sposta selezionate",
+		"deleting_one": "Eliminazione {{count}} immagine...",
+		"deleting_other": "Eliminazione {{count}} immagini...",
+		"moving_one": "Spostamento {{count}} immagine in {{folder}}/...",
+		"moving_other": "Spostamento {{count}} immagini in {{folder}}/..."
+	},
+	"confirmDelete": {
+		"title": "Conferma eliminazione",
+		"message_one": "Sei sicuro di voler eliminare {{count}} immagine?",
+		"message_other": "Sei sicuro di voler eliminare {{count}} immagini?",
+		"hint": "I file verranno spostati nel cestino di sistema e potranno essere recuperati.",
+		"delete": "Elimina"
+	},
+	"renameModal": {
+		"title": "Rinomina immagine",
+		"current": "Attuale: {{name}}",
+		"rename": "Rinomina"
+	}
+}

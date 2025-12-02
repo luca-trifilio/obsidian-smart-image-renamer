@@ -1,4 +1,5 @@
 import { App, Modal, Setting, TFile } from 'obsidian';
+import { t } from '../i18n';
 
 export class RenameImageModal extends Modal {
 	private file: TFile;
@@ -15,9 +16,9 @@ export class RenameImageModal extends Modal {
 		const { contentEl } = this;
 		contentEl.addClass('rename-image-modal');
 
-		new Setting(contentEl).setName('Rename image').setHeading();
+		new Setting(contentEl).setName(t('renameModal.title')).setHeading();
 		contentEl.createEl('p', {
-			text: `Current: ${this.file.basename}`,
+			text: t('renameModal.current', { name: this.file.basename }),
 			cls: 'rename-image-current'
 		});
 
@@ -35,12 +36,12 @@ export class RenameImageModal extends Modal {
 
 		new Setting(contentEl)
 			.addButton((btn) =>
-				btn.setButtonText('Rename')
+				btn.setButtonText(t('renameModal.rename'))
 					.setCta()
 					.onClick(() => this.submit())
 			)
 			.addButton((btn) =>
-				btn.setButtonText('Cancel')
+				btn.setButtonText(t('bulkRename.cancel'))
 					.onClick(() => this.close())
 			);
 
