@@ -5,6 +5,10 @@ on:
     types: [opened, synchronize, reopened, labeled, unlabeled]
     branches: [main]
 
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   # Step 1: Validate release label
   validate:

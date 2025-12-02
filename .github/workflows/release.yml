@@ -5,6 +5,10 @@ on:
     types: [closed]
     branches: [main]
 
+concurrency:
+  group: release-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   # Step 1: Build and test (only on merge with label)
   build:
