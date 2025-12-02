@@ -79,7 +79,7 @@ jobs:
           new_version="${{ steps.version.outputs.version }}"
           git add package.json package-lock.json manifest.json versions.json
           git commit -m "$new_version"
-          git tag "$new_version"
+          git tag -m "$new_version" "$new_version"
 
       - name: Push
         run: |
