@@ -3,10 +3,14 @@ name: Manual Release
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to release (e.g., 0.8.0) or bump type (patch/minor/major)'
+      bump:
+        description: 'Version bump type'
         required: true
-        type: string
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 jobs:
   release:
@@ -35,28 +39,18 @@ jobs:
       - name: Calculate version
         id: version
         run: |
-          input="${{ github.event.inputs.version }}"
+          bump="${{ github.event.inputs.bump }}"
           current=$(jq -r .version manifest.json)
+          IFS='.' read -r major minor patch <<< "$current"
 
-          if [[ "$input" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            # Direct version specified
-            new_version="$input"
-          elif [[ "$input" =~ ^(patch|minor|major)$ ]]; then
-            # Bump type specified
-            IFS='.' read -r major minor patch <<< "$current"
-            case "$input" in
-              major) new_version="$((major + 1)).0.0" ;;
-              minor) new_version="${major}.$((minor + 1)).0" ;;
-              patch) new_version="${major}.${minor}.$((patch + 1))" ;;
-            esac
-          else
-            echo "❌ Invalid version: $input"
-            echo "Use semver (e.g., 0.8.0) or bump type (patch/minor/major)"
-            exit 1
-          fi
+          case "$bump" in
+            major) new_version="$((major + 1)).0.0" ;;
+            minor) new_version="${major}.$((minor + 1)).0" ;;
+            patch) new_version="${major}.${minor}.$((patch + 1))" ;;
+          esac
 
           echo "version=$new_version" >> $GITHUB_OUTPUT
-          echo "📦 Version: $current → $new_version"
+          echo "📦 Version: $current → $new_version ($bump)"
 
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
