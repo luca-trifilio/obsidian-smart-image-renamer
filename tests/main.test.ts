@@ -308,7 +308,7 @@ describe('SmartImageRenamer', () => {
 			await (plugin as any).handlePaste(evt, editor, markdownView);
 
 			expect((plugin as any).imageProcessor.insertMarkdownLink).toHaveBeenCalledWith(
-				markdownView.editor,
+				editor,
 				'![[test-note 1.png]]'
 			);
 		});
