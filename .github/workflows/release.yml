@@ -1,0 +1,154 @@
+name: Release Pipeline
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Step 1: Build and test (only on merge with label)
+  build:
+    if: |
+      github.event.pull_request.merged == true &&
+      (contains(github.event.pull_request.labels.*.name, 'release:patch') ||
+       contains(github.event.pull_request.labels.*.name, 'release:minor') ||
+       contains(github.event.pull_request.labels.*.name, 'release:major'))
+    runs-on: ubuntu-latest
+    outputs:
+      bump_type: ${{ steps.type.outputs.bump_type }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Determine bump type
+        id: type
+        run: |
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'release:major') }}" == "true" ]]; then
+            echo "bump_type=major" >> $GITHUB_OUTPUT
+          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'release:minor') }}" == "true" ]]; then
+            echo "bump_type=minor" >> $GITHUB_OUTPUT
+          else
+            echo "bump_type=patch" >> $GITHUB_OUTPUT
+          fi
+
+  # Step 2: Bump version and create release
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        run: npm version ${{ needs.build.outputs.bump_type }}
+
+      - name: Push version bump
+        run: |
+          git push
+          git push --tags
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag=$(git describe --tags --abbrev=0)
+          gh release create "$tag" \
+            --title="$tag" \
+            --generate-notes \
+            main.js manifest.json styles.css
+
+  # Step 3: Cleanup beta releases
+  cleanup:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete beta releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr_number="${{ github.event.pull_request.number }}"
+          echo "Cleaning up betas for PR #${pr_number}..."
+
+          releases=$(gh release list --repo ${{ github.repository }} \
+            --json tagName -q ".[].tagName" | grep "beta.pr${pr_number}" || true)
+
+          if [ -z "$releases" ]; then
+            echo "No beta releases found"
+            exit 0
+          fi
+
+          for tag in $releases; do
+            echo "Deleting: $tag"
+            gh release delete "$tag" --repo ${{ github.repository }} --yes --cleanup-tag || true
+          done
+
+          echo "✅ Cleanup completed"
+
+  # Cleanup betas anche se PR chiusa senza merge
+  cleanup-on-close:
+    if: github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete beta releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr_number="${{ github.event.pull_request.number }}"
+          echo "PR #${pr_number} closed without merge, cleaning up betas..."
+
+          releases=$(gh release list --repo ${{ github.repository }} \
+            --json tagName -q ".[].tagName" | grep "beta.pr${pr_number}" || true)
+
+          if [ -z "$releases" ]; then
+            echo "No beta releases found"
+            exit 0
+          fi
+
+          for tag in $releases; do
+            echo "Deleting: $tag"
+            gh release delete "$tag" --repo ${{ github.repository }} --yes --cleanup-tag || true
+          done
+
+          echo "✅ Cleanup completed"
