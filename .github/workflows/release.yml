@@ -10,120 +10,131 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Step 1: Build and test (only on merge with label)
-  build:
-    if: |
-      github.event.pull_request.merged == true &&
-      (contains(github.event.pull_request.labels.*.name, 'release:patch') ||
-       contains(github.event.pull_request.labels.*.name, 'release:minor') ||
-       contains(github.event.pull_request.labels.*.name, 'release:major'))
-    runs-on: ubuntu-latest
-    outputs:
-      bump_type: ${{ steps.type.outputs.bump_type }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test
-
-      - name: Determine bump type
-        id: type
-        run: |
-          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'release:major') }}" == "true" ]]; then
-            echo "bump_type=major" >> $GITHUB_OUTPUT
-          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'release:minor') }}" == "true" ]]; then
-            echo "bump_type=minor" >> $GITHUB_OUTPUT
-          else
-            echo "bump_type=patch" >> $GITHUB_OUTPUT
-          fi
-
-  # Step 2: Bump version and create release
-  release:
-    needs: build
+  # Cleanup betas when PR is closed (merged or not)
+  cleanup-betas:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@v6
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
-          git_user_signingkey: true
-          git_commit_gpgsign: true
-          git_tag_gpgsign: true
-
-      - name: Bump version
-        run: npm version ${{ needs.build.outputs.bump_type }}
-
-      - name: Push version bump
-        run: |
-          git push
-          git push --tags
-
-      - name: Build plugin
-        run: npm run build
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tag=$(git describe --tags --abbrev=0)
-          gh release create "$tag" \
-            --title="$tag" \
-            --generate-notes \
-            main.js manifest.json styles.css
-
-  # Step 3: Cleanup beta releases
-  cleanup:
-    needs: release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Delete beta releases
+      - name: Cleanup beta releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pr_number="${{ github.event.pull_request.number }}"
-          echo "Cleaning up betas for PR #${pr_number}..."
+          echo "Cleaning up betas for PR #${pr_number}"
 
-          releases=$(gh release list --repo ${{ github.repository }} \
-            --json tagName -q ".[].tagName" | grep "beta.pr${pr_number}" || true)
-
-          if [ -z "$releases" ]; then
+          existing=$(gh release list --repo ${{ github.repository }} --json tagName -q ".[].tagName" | grep "beta.pr${pr_number}" || true)
+          if [ -z "$existing" ]; then
             echo "No beta releases found"
             exit 0
           fi
 
-          for tag in $releases; do
+          for tag in $existing; do
             echo "Deleting: $tag"
             gh release delete "$tag" --repo ${{ github.repository }} --yes --cleanup-tag || true
           done
 
-          echo "✅ Cleanup completed"
+  # Check if release is needed
+  check-release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      bump_type: ${{ steps.check.outputs.bump_type }}
+    steps:
+      - name: Check release label
+        id: check
+        run: |
+          labels='${{ toJSON(github.event.pull_request.labels.*.name) }}'
+
+          if echo "$labels" | grep -q "release:major"; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "bump_type=major" >> $GITHUB_OUTPUT
+          elif echo "$labels" | grep -q "release:minor"; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "bump_type=minor" >> $GITHUB_OUTPUT
+          elif echo "$labels" | grep -q "release:patch"; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "bump_type=patch" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "No release label - skipping release"
+          fi
+
+  # Release only when PR is merged AND has release label
+  release:
+    needs: check-release
+    if: needs.check-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bump version
+        id: version
+        run: |
+          npm version ${{ needs.check-release.outputs.bump_type }} --no-git-tag-version
+          new_version=$(jq -r .version package.json)
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+          echo "New version: $new_version"
+
+      - name: Update manifest and versions.json
+        run: |
+          new_version="${{ steps.version.outputs.new_version }}"
+
+          # Update manifest.json
+          jq ".version = \"$new_version\"" manifest.json > tmp.json && mv tmp.json manifest.json
+
+          # Update versions.json
+          min_app_version=$(jq -r .minAppVersion manifest.json)
+          jq ". + {\"$new_version\": \"$min_app_version\"}" versions.json > tmp.json && mv tmp.json versions.json
+
+      - name: Build
+        run: npm run build
+
+      - name: Commit and tag
+        run: |
+          new_version="${{ steps.version.outputs.new_version }}"
+
+          git add package.json package-lock.json manifest.json versions.json
+          git commit -m "$new_version"
+          git tag -m "$new_version" "$new_version"
+          git push origin main --tags
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          new_version="${{ steps.version.outputs.new_version }}"
+          bump_type="${{ needs.check-release.outputs.bump_type }}"
+          pr_number="${{ github.event.pull_request.number }}"
+          pr_title="${{ github.event.pull_request.title }}"
+
+          gh release create "$new_version" \
+            --title="$new_version" \
+            --notes="## What's Changed
+
+          ${pr_title} (#${pr_number})
+
+          **Version bump:** ${bump_type}
+
+          ---
+          [Full Changelog](https://github.com/${{ github.repository }}/compare/$(git describe --tags --abbrev=0 $new_version^)...$new_version)" \
+            main.js manifest.json styles.css

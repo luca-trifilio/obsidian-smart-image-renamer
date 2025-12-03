@@ -2,7 +2,7 @@ name: PR Pipeline
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened]
     branches: [main]
 
 concurrency:
@@ -10,43 +10,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Step 1: Validate release label
-  validate:
+  build-test:
     runs-on: ubuntu-latest
     outputs:
-      has_label: ${{ steps.check.outputs.has_label }}
-      bump_type: ${{ steps.check.outputs.bump_type }}
+      has_label: ${{ steps.label.outputs.has_label }}
+      bump_type: ${{ steps.label.outputs.bump_type }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Check release label
-        id: check
+        id: label
         run: |
           labels='${{ toJSON(github.event.pull_request.labels.*.name) }}'
 
           if echo "$labels" | grep -q "release:major"; then
             echo "has_label=true" >> $GITHUB_OUTPUT
             echo "bump_type=major" >> $GITHUB_OUTPUT
-            echo "✅ Label: release:major"
+            echo "Label: release:major"
           elif echo "$labels" | grep -q "release:minor"; then
             echo "has_label=true" >> $GITHUB_OUTPUT
             echo "bump_type=minor" >> $GITHUB_OUTPUT
-            echo "✅ Label: release:minor"
+            echo "Label: release:minor"
           elif echo "$labels" | grep -q "release:patch"; then
             echo "has_label=true" >> $GITHUB_OUTPUT
             echo "bump_type=patch" >> $GITHUB_OUTPUT
-            echo "✅ Label: release:patch"
+            echo "Label: release:patch"
           else
             echo "has_label=false" >> $GITHUB_OUTPUT
             echo "bump_type=" >> $GITHUB_OUTPUT
-            echo "❌ Missing release label! Add: release:patch, release:minor, or release:major"
-            exit 1
+            echo "No release label - will skip beta/release"
           fi
-
-  # Step 2: Build and test
-  build-test:
-    needs: validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
@@ -66,6 +59,7 @@ jobs:
         run: npm run build
 
       - name: Upload build artifacts
+        if: steps.label.outputs.has_label == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: plugin-build
@@ -75,10 +69,9 @@ jobs:
             styles.css
           retention-days: 1
 
-  # Step 3: Create beta release
   beta-release:
-    needs: [validate, build-test]
-    if: needs.validate.outputs.has_label == 'true'
+    needs: build-test
+    if: needs.build-test.outputs.has_label == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -95,7 +88,7 @@ jobs:
         id: version
         run: |
           current_version=$(jq -r .version manifest.json)
-          bump_type="${{ needs.validate.outputs.bump_type }}"
+          bump_type="${{ needs.build-test.outputs.bump_type }}"
 
           IFS='.' read -r major minor patch <<< "$current_version"
 
@@ -123,7 +116,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           beta_version="${{ steps.version.outputs.beta_version }}"
-          bump_type="${{ needs.validate.outputs.bump_type }}"
+          bump_type="${{ needs.build-test.outputs.bump_type }}"
           pr_number="${{ github.event.pull_request.number }}"
           short_sha="${GITHUB_SHA:0:7}"
           beta_tag="${beta_version}-beta.pr${pr_number}.${short_sha}"
@@ -139,7 +132,7 @@ jobs:
 
           # Create new beta
           gh release create "$beta_tag" \
-            --title="🧪 ${beta_version} Beta (PR #${pr_number})" \
+            --title="Beta ${beta_version} (PR #${pr_number})" \
             --notes="## Beta Release
 
           Automated beta for PR #${pr_number}.
@@ -155,7 +148,7 @@ jobs:
           4. Select: \`${beta_tag}\`
 
           ---
-          ⚠️ Pre-release for testing only." \
+          Pre-release for testing only." \
             --prerelease \
             main.js manifest.json styles.css
 
@@ -164,19 +157,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           beta_version="${{ steps.version.outputs.beta_version }}"
-          bump_type="${{ needs.validate.outputs.bump_type }}"
+          bump_type="${{ needs.build-test.outputs.bump_type }}"
           pr_number="${{ github.event.pull_request.number }}"
           short_sha="${GITHUB_SHA:0:7}"
           beta_tag="${beta_version}-beta.pr${pr_number}.${short_sha}"
 
           # Delete previous beta comments
           existing=$(gh api repos/${{ github.repository }}/issues/${pr_number}/comments \
-            --jq '.[] | select(.body | contains("## 🧪 Beta Release")) | .id')
+            --jq '.[] | select(.body | contains("## Beta Release")) | .id')
           for cid in $existing; do
             gh api repos/${{ github.repository }}/issues/comments/${cid} -X DELETE || true
           done
 
-          gh pr comment "$pr_number" --body "## 🧪 Beta Release Available
+          gh pr comment "$pr_number" --body "## Beta Release Available
 
           | | |
           |---|---|
@@ -190,7 +183,7 @@ jobs:
           \`\`\`
           Select version: \`$beta_tag\`
 
-          [📦 Download](https://github.com/${{ github.repository }}/releases/tag/$beta_tag)
+          [Download](https://github.com/${{ github.repository }}/releases/tag/$beta_tag)
 
           ---
           *Auto-updated on each push.*"
