@@ -9,7 +9,9 @@
       "Bash(npm root:*)",
       "Bash(npm ls:*)",
       "Bash(npx eslint .)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "WebSearch",
+      "Bash(gh run list:*)"
     ],
     "deny": [],
     "ask": []
