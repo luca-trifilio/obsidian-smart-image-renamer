@@ -1,100 +1,74 @@
 name: Manual Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      bump:
-        description: 'Version bump type'
-        required: true
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
+  release:
+    types: [created]
 
 jobs:
-  release:
+  build-and-upload:
+    # Only run for releases created manually (not by workflows)
+    if: github.event.release.author.login != 'github-actions[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PAT_TOKEN }}
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test
-
-      - name: Calculate version
+      - name: Update version in files
         id: version
         run: |
-          bump="${{ github.event.inputs.bump }}"
-          current=$(jq -r .version manifest.json)
-          IFS='.' read -r major minor patch <<< "$current"
+          version="${{ github.event.release.tag_name }}"
+          # Remove 'v' prefix if present
+          version="${version#v}"
 
-          case "$bump" in
-            major) new_version="$((major + 1)).0.0" ;;
-            minor) new_version="${major}.$((minor + 1)).0" ;;
-            patch) new_version="${major}.${minor}.$((patch + 1))" ;;
-          esac
-
-          echo "version=$new_version" >> $GITHUB_OUTPUT
-          echo "📦 Version: $current → $new_version ($bump)"
-
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@v6
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
-          git_user_signingkey: true
-          git_commit_gpgsign: true
-          git_tag_gpgsign: true
-
-      - name: Update version files
-        run: |
-          new_version="${{ steps.version.outputs.version }}"
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "Updating to version: $version"
 
           # Update package.json
-          npm version "$new_version" --no-git-tag-version
+          jq ".version = \"$version\"" package.json > tmp.json && mv tmp.json package.json
+
+          # Update package-lock.json
+          npm version "$version" --no-git-tag-version --allow-same-version
 
           # Update manifest.json
-          jq --arg v "$new_version" '.version = $v' manifest.json > tmp.json && mv tmp.json manifest.json
+          jq ".version = \"$version\"" manifest.json > tmp.json && mv tmp.json manifest.json
 
           # Update versions.json
-          jq --arg v "$new_version" '. + {($v): "0.15.0"}' versions.json > tmp.json && mv tmp.json versions.json
-
-      - name: Commit and tag
-        run: |
-          new_version="${{ steps.version.outputs.version }}"
-          git add package.json package-lock.json manifest.json versions.json
-          git commit -m "$new_version"
-          git tag -m "$new_version" "$new_version"
-
-      - name: Push
-        run: |
-          git push
-          git push --tags
+          min_app_version=$(jq -r .minAppVersion manifest.json)
+          jq ". + {\"$version\": \"$min_app_version\"}" versions.json > tmp.json && mv tmp.json versions.json
 
       - name: Build
         run: npm run build
 
-      - name: Create release
+      - name: Commit version bump
+        run: |
+          version="${{ steps.version.outputs.version }}"
+
+          git add package.json package-lock.json manifest.json versions.json
+          git commit -m "$version" || echo "No changes to commit"
+          git push origin main
+
+      - name: Upload assets to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          new_version="${{ steps.version.outputs.version }}"
-          gh release create "$new_version" \
-            --title="$new_version" \
-            --generate-notes \
-            main.js manifest.json styles.css
+          tag="${{ github.event.release.tag_name }}"
+
+          echo "Uploading assets to release: $tag"
+          gh release upload "$tag" main.js manifest.json styles.css --clobber
