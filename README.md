@@ -1,9 +1,17 @@
+<div align="center">
+
+<img src="https://obsidian.md/images/obsidian-logo-gradient.svg" width="100" height="100" alt="Obsidian">
+
 # Smart Image Renamer
+
+**Automatically rename pasted images in Obsidian**
+
+*No more `Pasted image 20231201123456.png` cluttering your vault*
 
 [![GitHub Release](https://img.shields.io/github/v/release/luca-trifilio/obsidian-smart-image-renamer?style=flat)](https://github.com/luca-trifilio/obsidian-smart-image-renamer/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Tired of `Pasted image 20231201123456.png` cluttering your vault? This Obsidian plugin automatically renames pasted images to match your note's name.
+</div>
 
 ## Features
 
@@ -87,8 +95,14 @@ Or use [BRAT](https://github.com/TfTHacker/obsidian42-brat) with: `luca-trifilio
 
 ## License
 
-MIT
+MIT - see [LICENSE](LICENSE) for details.
 
 ---
 
-[Report Bug](https://github.com/luca-trifilio/obsidian-smart-image-renamer/issues/new?labels=bug) · [Request Feature](https://github.com/luca-trifilio/obsidian-smart-image-renamer/issues/new?labels=enhancement)
+<div align="center">
+
+**Made with ❤️ for the Obsidian community**
+
+[Report Bug](https://github.com/luca-trifilio/obsidian-smart-image-renamer/issues/new?labels=bug) • [Request Feature](https://github.com/luca-trifilio/obsidian-smart-image-renamer/issues/new?labels=enhancement)
+
+</div>
