@@ -154,7 +154,7 @@ export class BulkRenameModal extends Modal {
 				btn
 					.setButtonText(t('bulkRename.renameSelected'))
 					.setCta()
-					.onClick(() => this.executeRename())
+					.onClick(() => { void this.executeRename(); })
 			)
 			.addButton((btn) =>
 				btn.setButtonText(t('bulkRename.cancel')).onClick(() => this.close())

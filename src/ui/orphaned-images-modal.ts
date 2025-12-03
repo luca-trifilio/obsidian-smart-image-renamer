@@ -156,7 +156,7 @@ export class OrphanedImagesModal extends Modal {
 			btn
 				.setButtonText(t('orphanedImages.moveSelected'))
 				.setCta()
-				.onClick(() => this.executeMove())
+				.onClick(() => { void this.executeMove(); })
 		);
 
 		buttonSetting.addButton((btn) =>

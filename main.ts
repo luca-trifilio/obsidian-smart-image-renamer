@@ -95,7 +95,7 @@ export default class SmartImageRenamer extends Plugin {
 		this.registerDomEvent(
 			document,
 			'drop',
-			(evt: DragEvent) => { void this.handleGlobalDrop(evt); },
+			(evt: DragEvent) => { this.handleGlobalDrop(evt); },
 			true
 		);
 
@@ -215,7 +215,7 @@ export default class SmartImageRenamer extends Plugin {
 		menu.addItem((item) => {
 			item.setTitle(t('menu.renameImage'))
 				.setIcon('pencil')
-				.onClick(() => this.renameImageFromLink(imageLink, info));
+				.onClick(() => { this.renameImageFromLink(imageLink, info); });
 		});
 	}
 
@@ -236,7 +236,7 @@ export default class SmartImageRenamer extends Plugin {
 		}).open();
 	}
 
-	private async renameImageFromLink(imageName: string, info: MarkdownView | MarkdownFileInfo): Promise<void> {
+	private renameImageFromLink(imageName: string, info: MarkdownView | MarkdownFileInfo): void {
 		const file = this.fileService.resolveImageLink(imageName, info.file?.path || '');
 		if (!file) {
 			new Notice(t('notices.imageNotFound', { name: imageName }));
@@ -279,7 +279,7 @@ export default class SmartImageRenamer extends Plugin {
 		}
 	}
 
-	private async handleGlobalDrop(evt: DragEvent): Promise<void> {
+	private handleGlobalDrop(evt: DragEvent): void {
 		const dataTransfer = evt.dataTransfer;
 		if (!dataTransfer) return;
 
