@@ -71,10 +71,7 @@ jobs:
 
   beta-release:
     needs: build-test
-    # Skip beta for automated release branches (they don't need beta testing)
-    if: |
-      needs.build-test.outputs.has_label == 'true' &&
-      !startsWith(github.event.pull_request.head.ref, 'release/')
+    if: needs.build-test.outputs.has_label == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
