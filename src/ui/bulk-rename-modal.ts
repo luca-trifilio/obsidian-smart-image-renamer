@@ -161,7 +161,7 @@ export class BulkRenameModal extends Modal {
 			);
 	}
 
-	private async scanAndPreview(): Promise<void> {
+	private scanAndPreview(): void {
 		this.listContainer.empty();
 		this.listContainer.createEl('p', { text: t('bulkRename.scanning'), cls: 'bulk-rename-scanning' });
 

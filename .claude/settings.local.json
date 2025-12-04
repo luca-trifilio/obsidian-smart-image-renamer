@@ -11,7 +11,17 @@
       "Bash(npx eslint .)",
       "Bash(cat:*)",
       "WebSearch",
-      "Bash(gh run list:*)"
+      "Bash(gh run list:*)",
+      "mcp__github__pull_request_read",
+      "mcp__github__get_tag",
+      "mcp__github__list_releases",
+      "mcp__github__get_file_contents",
+      "Bash(gh pr checks:*)",
+      "mcp__github__list_commits",
+      "WebFetch(domain:forum.obsidian.md)",
+      "mcp__github__get_commit",
+      "Bash(npm run build:*)",
+      "Bash(npm run lint:*)"
     ],
     "deny": [],
     "ask": []
