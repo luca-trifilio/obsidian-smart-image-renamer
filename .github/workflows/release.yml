@@ -36,7 +36,10 @@ jobs:
 
   # Check if release is needed
   check-release:
-    if: github.event.pull_request.merged == true
+    # Skip if PR is from a release branch (to avoid double trigger)
+    if: |
+      github.event.pull_request.merged == true &&
+      !startsWith(github.event.pull_request.head.ref, 'release/')
     runs-on: ubuntu-latest
     outputs:
       should_release: ${{ steps.check.outputs.should_release }}
@@ -68,6 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -109,16 +113,74 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Commit and tag
+      - name: Create release branch and PR
+        id: create_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           new_version="${{ steps.version.outputs.new_version }}"
+          bump_type="${{ needs.check-release.outputs.bump_type }}"
+          pr_number="${{ github.event.pull_request.number }}"
+          pr_title="${{ github.event.pull_request.title }}"
+          release_branch="release/${new_version}"
 
+          # Create release branch
+          git checkout -b "$release_branch"
+
+          # Commit version bump
           git add package.json package-lock.json manifest.json versions.json
-          git commit -m "$new_version"
-          git tag -m "$new_version" "$new_version"
-          git push origin main --tags
+          git commit -m "chore: release ${new_version}"
 
-      - name: Create GitHub release
+          # Push release branch
+          git push origin "$release_branch"
+
+          # Create PR with auto-merge
+          pr_url=$(gh pr create \
+            --title "chore: release ${new_version}" \
+            --body "## Automated Release
+
+          Bumps version to \`${new_version}\` (${bump_type}).
+
+          Triggered by: ${pr_title} (#${pr_number})
+
+          ---
+          *This PR will be auto-merged when checks pass.*" \
+            --base main \
+            --head "$release_branch")
+
+          echo "pr_url=$pr_url" >> $GITHUB_OUTPUT
+          echo "Created PR: $pr_url"
+
+          # Enable auto-merge
+          gh pr merge "$release_branch" --auto --squash
+
+      - name: Wait for PR to be merged
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          release_branch="release/${{ steps.version.outputs.new_version }}"
+          echo "Waiting for PR to be merged..."
+
+          # Poll every 30 seconds for up to 10 minutes
+          for i in {1..20}; do
+            state=$(gh pr view "$release_branch" --json state -q '.state')
+            echo "PR state: $state (attempt $i/20)"
+
+            if [ "$state" = "MERGED" ]; then
+              echo "PR merged successfully!"
+              exit 0
+            elif [ "$state" = "CLOSED" ]; then
+              echo "PR was closed without merging!"
+              exit 1
+            fi
+
+            sleep 30
+          done
+
+          echo "Timeout waiting for PR to be merged"
+          exit 1
+
+      - name: Create tag and GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -127,6 +189,25 @@ jobs:
           pr_number="${{ github.event.pull_request.number }}"
           pr_title="${{ github.event.pull_request.title }}"
 
+          # Fetch latest main (with the merged PR)
+          git fetch origin main
+          git checkout main
+          git pull origin main
+
+          # Create and push tag
+          git tag -m "$new_version" "$new_version"
+          git push origin "$new_version"
+
+          # Get previous tag for changelog
+          previous_tag=$(git describe --tags --abbrev=0 "$new_version^" 2>/dev/null || echo "")
+
+          if [ -n "$previous_tag" ]; then
+            changelog_link="[Full Changelog](https://github.com/${{ github.repository }}/compare/${previous_tag}...${new_version})"
+          else
+            changelog_link=""
+          fi
+
+          # Create GitHub release
           gh release create "$new_version" \
             --title="$new_version" \
             --notes="## What's Changed
@@ -136,5 +217,5 @@ jobs:
           **Version bump:** ${bump_type}
 
           ---
-          [Full Changelog](https://github.com/${{ github.repository }}/compare/$(git describe --tags --abbrev=0 $new_version^)...$new_version)" \
+          ${changelog_link}" \
             main.js manifest.json styles.css
