@@ -232,6 +232,46 @@ More text
 
 			expect(link).toBeNull();
 		});
+
+		it('should find wiki-link without extension (Obsidian shorthand)', () => {
+			const content = '![[Impianto hi-fi 2]]';
+			const link = service.findImageLink(content, 'Impianto hi-fi 2.jpeg');
+
+			expect(link).not.toBeNull();
+			expect(link?.filePath).toBe('Impianto hi-fi 2');
+		});
+
+		it('should find wiki-link without extension with caption', () => {
+			const content = '![[my image|some caption]]';
+			const link = service.findImageLink(content, 'my image.png');
+
+			expect(link).not.toBeNull();
+			expect(link?.caption).toBe('some caption');
+		});
+
+		it('should prefer exact match over basename fallback', () => {
+			const content = '![[image.png|exact]] ![[image|fallback]]';
+			const link = service.findImageLink(content, 'image.png');
+
+			expect(link).not.toBeNull();
+			expect(link?.caption).toBe('exact');
+		});
+
+		it('should handle URL-encoded paths in markdown syntax', () => {
+			const content = '![](Impianto%20hi-fi%202.jpeg)';
+			const link = service.findImageLink(content, 'Impianto hi-fi 2.jpeg');
+
+			expect(link).not.toBeNull();
+			expect(link?.type).toBe('markdown');
+		});
+
+		it('should handle URL-encoded paths with caption', () => {
+			const content = '![My caption](folder%2Fimage%20name.png)';
+			const link = service.findImageLink(content, 'image name.png');
+
+			expect(link).not.toBeNull();
+			expect(link?.caption).toBe('My caption');
+		});
 	});
 
 	describe('setCaption', () => {
