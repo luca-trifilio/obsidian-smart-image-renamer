@@ -1,12 +1,16 @@
 # Delete Image with Link
 
+**Branch:** `feat/delete-image-with-link`
+**PR:** #36
+**Status:** 🔧 In testing
+
 ## Summary
 
 Add ability to delete image files when removing their links from notes.
 
 **Two triggers:**
-1. Context menu "Delete image" on images (rendered + wikilinks)
-2. Auto-prompt when user deletes an image link (Backspace/Delete)
+1. ✅ Context menu "Delete image" on images (rendered + wikilinks)
+2. 🔧 Auto-prompt when user deletes an image link (Backspace/Delete)
 
 ## Settings
 
@@ -23,7 +27,7 @@ Add "Delete image" item to existing context menu (after "Rename image").
 
 **Multi-link warning:** If image linked in >1 notes, show confirmation modal listing affected notes before deletion.
 
-**Deletion method:** `app.vault.trash(file, true)` — respects Obsidian's "Deleted files" setting (system trash / .trash / permanent).
+**Deletion method:** `app.fileManager.trashFile(file)` — respects Obsidian's "Deleted files" setting.
 
 ### Auto-prompt on Link Delete
 
@@ -39,13 +43,20 @@ Add "Delete image" item to existing context menu (after "Rename image").
 ## File Changes
 
 ### New Files
+- `src/services/link-tracker-service.ts` — Link cache + removal detection
 - `src/ui/delete-image-modal.ts` — Confirmation modal with backlinks list
+- `tests/types/settings.test.ts` — Tests for new setting
+- `tests/services/link-tracker-service.test.ts` — Tests for link tracker
 
 ### Modified Files
-- `main.ts` — Context menu items + editor-change handler + link cache
+- `main.ts` — Context menu items + editor-change handler + link cache init
 - `src/types/settings.ts` — Add `deletePromptBehavior` setting
 - `src/ui/settings-tab.ts` — Dropdown for new setting
-- `src/i18n/` — New translation keys
+- `src/services/index.ts` — Export LinkTrackerService
+- `src/ui/index.ts` — Export DeleteImageModal
+- `src/i18n/locales/en.json` — New translation keys
+- `src/i18n/locales/it.json` — New translation keys
+- `tests/__mocks__/obsidian.ts` — Add debounce mock
 
 ## i18n Keys
 
@@ -62,12 +73,46 @@ settings.deletePrompt.orphanOnly: Only if orphaned
 settings.deletePrompt.never: Never
 ```
 
+## Implementation Progress
+
+### ✅ Completed
+- `deletePromptBehavior` setting in `src/types/settings.ts`
+- `LinkTrackerService` in `src/services/link-tracker-service.ts`
+- `DeleteImageModal` in `src/ui/delete-image-modal.ts`
+- Context menu "Delete image" (rendered images + wikilinks)
+- Settings dropdown in `src/ui/settings-tab.ts`
+- i18n keys (EN + IT)
+- Unit tests for settings and link tracker
+- Supporto wikilinks `![[image.png]]` + markdown `![](image.png)`
+- URL-decode per path con spazi (`%20`)
+
+### 🔧 In Progress
+- Auto-prompt on link delete non funziona
+  - Debug logs aggiunti (`console.debug('[SIR]...')`)
+  - In attesa test utente via BRAT
+
+### ❓ Da verificare
+- Cache inizializzata correttamente?
+- `resolveImageLink` trova il file?
+- Backlinks check funziona?
+
 ## Testing
 
-- Unit tests for link removal detection logic
-- Mock editor state changes to verify cache diff works correctly
-- Test debounce behavior
+### Unit Tests
+- ✅ `tests/types/settings.test.ts` — deletePromptBehavior setting
+- ✅ `tests/services/link-tracker-service.test.ts` — link extraction e detection
+  - Wikilinks e markdown syntax
+  - URL-decode
+  - Cache update/clear
+
+### Manual Testing
+- [x] Context menu → Delete image → funziona
+- [ ] Delete link in editor → prompt appare
+- [ ] Setting "always" → prompt sempre
+- [ ] Setting "orphan-only" → prompt solo se orfana
+- [ ] Setting "never" → nessun prompt
+- [ ] Auto-dismiss 5s su orphan prompt
 
 ## Open Questions
 
-None — design validated.
+- Perché auto-prompt non scatta? Debug in corso.
