@@ -6,6 +6,7 @@ import {
 	sanitizeFilename,
 	isImageFile,
 	getImageLinkAtCursor,
+	getFirstImageLinkInLine,
 	extractImagePathFromSrc,
 	removeNoteSuffixes
 } from './src/utils';
@@ -268,7 +269,9 @@ export default class SmartImageRenamer extends Plugin {
 		// Check if cursor is on a wikilink
 		const cursor = editor.getCursor();
 		const line = editor.getLine(cursor.line);
-		const imageLink = getImageLinkAtCursor(line, cursor.ch);
+		// Try cursor position first, then fallback to first image in line
+		// (right-click may not move cursor to click position in source mode)
+		const imageLink = getImageLinkAtCursor(line, cursor.ch) || getFirstImageLinkInLine(line);
 
 		if (!imageLink) return;
 

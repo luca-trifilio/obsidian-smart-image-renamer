@@ -74,6 +74,16 @@ export function getImageLinkAtCursor(line: string, cursorPos: number): string | 
 	return null;
 }
 
+/**
+ * Get the first image link in a line, regardless of cursor position.
+ * Fallback for context menus when cursor position doesn't match click position.
+ */
+export function getFirstImageLinkInLine(line: string): string | null {
+	const regex = new RegExp(WIKI_IMAGE_REGEX.source, 'gi');
+	const match = regex.exec(line);
+	return match ? match[1] : null;
+}
+
 export function extractImagePathFromSrc(src: string): string | null {
 	let imagePath = decodeURIComponent(src);
 

@@ -1,4 +1,4 @@
-import { App, Modal, Setting, TFile } from 'obsidian';
+import { App, Modal, Notice, Setting, TFile } from 'obsidian';
 import { t } from '../i18n';
 import { CaptionService } from '../services/caption-service';
 
@@ -94,6 +94,13 @@ export class CaptionModal extends Modal {
 		// Read current note content
 		const content = await this.app.vault.read(this.sourceNote);
 
+		// Check if we can find the image link
+		const link = this.captionService.findImageLink(content, this.imageFile.name);
+		if (!link) {
+			new Notice(t('notices.imageLinkNotFound', { name: this.imageFile.name }));
+			return;
+		}
+
 		// Update caption
 		const newContent = this.captionService.setCaption(
 			content,
@@ -102,6 +109,7 @@ export class CaptionModal extends Modal {
 		);
 
 		await this.onSave(newContent);
+		new Notice(t('notices.captionSaved'));
 		this.close();
 	}
 
@@ -110,6 +118,7 @@ export class CaptionModal extends Modal {
 		const newContent = this.captionService.removeCaption(content, this.imageFile.name);
 
 		await this.onSave(newContent);
+		new Notice(t('notices.captionRemoved'));
 		this.close();
 	}
 

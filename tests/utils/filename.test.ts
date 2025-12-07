@@ -5,6 +5,7 @@ import {
 	isImageFile,
 	getExtensionFromMime,
 	getImageLinkAtCursor,
+	getFirstImageLinkInLine,
 	extractImagePathFromSrc,
 	removeNoteSuffixes
 } from '../../src/utils/filename';
@@ -242,6 +243,34 @@ describe('getImageLinkAtCursor', () => {
 	it('should handle images with path and caption', () => {
 		const line = '![[attachments/image.png|Caption]]';
 		expect(getImageLinkAtCursor(line, 15)).toBe('attachments/image.png');
+	});
+});
+
+describe('getFirstImageLinkInLine', () => {
+	it('should return first image in line', () => {
+		expect(getFirstImageLinkInLine('![[image.png]]')).toBe('image.png');
+		expect(getFirstImageLinkInLine('Some text ![[image.png]] more')).toBe('image.png');
+	});
+
+	it('should return first image when multiple exist', () => {
+		expect(getFirstImageLinkInLine('![[first.png]] and ![[second.jpg]]')).toBe('first.png');
+	});
+
+	it('should handle image with caption', () => {
+		expect(getFirstImageLinkInLine('![[image.png|My caption]]')).toBe('image.png');
+	});
+
+	it('should handle image with path', () => {
+		expect(getFirstImageLinkInLine('![[attachments/image.png]]')).toBe('attachments/image.png');
+	});
+
+	it('should return null for no images', () => {
+		expect(getFirstImageLinkInLine('No images here')).toBe(null);
+		expect(getFirstImageLinkInLine('')).toBe(null);
+	});
+
+	it('should return null for non-image links', () => {
+		expect(getFirstImageLinkInLine('![[document.pdf]]')).toBe(null);
 	});
 });
 
