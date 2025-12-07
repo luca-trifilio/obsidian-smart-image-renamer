@@ -1,7 +1,7 @@
-import { Plugin, TFile, MarkdownView, MarkdownFileInfo, Notice, Menu, Editor, TAbstractFile } from 'obsidian';
+import { Plugin, TFile, MarkdownView, MarkdownFileInfo, Notice, Menu, Editor, TAbstractFile, debounce } from 'obsidian';
 import { SmartImageRenamerSettings, DEFAULT_SETTINGS } from './src/types/settings';
-import { FileService, ImageProcessor, BulkRenameService } from './src/services';
-import { SmartImageRenamerSettingTab, RenameImageModal, BulkRenameModal, OrphanedImagesModal } from './src/ui';
+import { FileService, ImageProcessor, BulkRenameService, LinkTrackerService } from './src/services';
+import { SmartImageRenamerSettingTab, RenameImageModal, BulkRenameModal, OrphanedImagesModal, DeleteImageModal } from './src/ui';
 import {
 	sanitizeFilename,
 	isImageFile,
@@ -17,6 +17,7 @@ export default class SmartImageRenamer extends Plugin {
 	private fileService: FileService;
 	private imageProcessor: ImageProcessor;
 	private bulkRenameService: BulkRenameService;
+	private linkTrackerService: LinkTrackerService;
 	private pendingImageFile: TFile | undefined;
 	// Track files we're processing to avoid double-renaming
 	private processingFiles: Set<string> = new Set();
@@ -24,6 +25,8 @@ export default class SmartImageRenamer extends Plugin {
 	private isStartupComplete: boolean = false;
 	// Flag to force rename (skip generic name check) - set during Excalidraw drops
 	private forceRenameNext: boolean = false;
+	// Debounced handler for editor changes
+	private debouncedEditorChange: ReturnType<typeof debounce>;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -31,6 +34,16 @@ export default class SmartImageRenamer extends Plugin {
 		this.fileService = new FileService(this.app, this.settings);
 		this.imageProcessor = new ImageProcessor(this.fileService, this.settings);
 		this.bulkRenameService = new BulkRenameService(this.app, this.settings);
+		this.linkTrackerService = new LinkTrackerService();
+
+		// Setup debounced editor change handler
+		this.debouncedEditorChange = debounce(
+			(editor: Editor, info: MarkdownView | MarkdownFileInfo) => {
+				this.handleEditorChange(editor, info);
+			},
+			300,
+			true
+		);
 
 		this.addSettingTab(new SmartImageRenamerSettingTab(this.app, this));
 
@@ -99,6 +112,23 @@ export default class SmartImageRenamer extends Plugin {
 			true
 		);
 
+		// Monitor editor changes for link removal detection
+		this.registerEvent(
+			this.app.workspace.on('editor-change', (editor, info) => {
+				this.debouncedEditorChange(editor, info);
+			})
+		);
+
+		// Initialize link cache when opening a file
+		this.registerEvent(
+			this.app.workspace.on('active-leaf-change', () => {
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (view?.file) {
+					this.linkTrackerService.updateCache(view.file.path, view.editor.getValue());
+				}
+			})
+		);
+
 		// Monitor file creation for auto-rename (drag & drop, Excalidraw, etc.)
 		this.registerEvent(
 			this.app.vault.on('create', (file) => { void this.handleFileCreate(file); })
@@ -108,7 +138,19 @@ export default class SmartImageRenamer extends Plugin {
 		// during vault indexing
 		setTimeout(() => {
 			this.isStartupComplete = true;
+			// Initialize link cache for currently active note
+			this.initializeLinkCacheForActiveNote();
 		}, 3000);
+	}
+
+	/**
+	 * Initialize link cache for the currently active note
+	 */
+	private initializeLinkCacheForActiveNote(): void {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (view?.file && view.editor) {
+			this.linkTrackerService.updateCache(view.file.path, view.editor.getValue());
+		}
 	}
 
 	onunload(): void {
@@ -202,6 +244,11 @@ export default class SmartImageRenamer extends Plugin {
 					.setIcon('pencil')
 					.onClick(() => this.openRenameModal(file));
 			});
+			menu.addItem((item) => {
+				item.setTitle(t('menu.deleteImage'))
+					.setIcon('trash')
+					.onClick(() => { this.openDeleteModal(file); });
+			});
 			return;
 		}
 
@@ -212,11 +259,21 @@ export default class SmartImageRenamer extends Plugin {
 
 		if (!imageLink) return;
 
+		const resolvedFile = this.fileService.resolveImageLink(imageLink, info.file?.path || '');
+
 		menu.addItem((item) => {
 			item.setTitle(t('menu.renameImage'))
 				.setIcon('pencil')
 				.onClick(() => { this.renameImageFromLink(imageLink, info); });
 		});
+
+		if (resolvedFile) {
+			menu.addItem((item) => {
+				item.setTitle(t('menu.deleteImage'))
+					.setIcon('trash')
+					.onClick(() => { this.openDeleteModal(resolvedFile); });
+			});
+		}
 	}
 
 	private openRenameModal(file: TFile): void {
@@ -445,5 +502,88 @@ export default class SmartImageRenamer extends Plugin {
 	 */
 	private getCleanBaseName(file: TFile): string {
 		return removeNoteSuffixes(file.basename, this.settings.suffixesToRemove);
+	}
+
+	/**
+	 * Handle editor changes to detect removed image links
+	 */
+	private handleEditorChange(editor: Editor, info: MarkdownView | MarkdownFileInfo): void {
+		console.debug('[SIR] handleEditorChange called, setting:', this.settings.deletePromptBehavior);
+		if (this.settings.deletePromptBehavior === 'never') return;
+
+		const notePath = info.file?.path;
+		if (!notePath) return;
+
+		const cachedLinks = this.linkTrackerService.getCachedLinks(notePath);
+		console.debug('[SIR] cachedLinks for', notePath, ':', cachedLinks ? [...cachedLinks] : 'NOT CACHED');
+
+		// Skip if cache not initialized (note just opened, wait for active-leaf-change)
+		if (!cachedLinks) {
+			return;
+		}
+
+		const content = editor.getValue();
+		const removedLinks = this.linkTrackerService.detectRemovedLinks(notePath, content);
+		console.debug('[SIR] removedLinks:', removedLinks);
+
+		if (removedLinks.length === 0) return;
+
+		// Process each removed link
+		for (const linkPath of removedLinks) {
+			console.debug('[SIR] processing removed link:', linkPath);
+			const imageFile = this.fileService.resolveImageLink(linkPath, notePath);
+			console.debug('[SIR] resolveImageLink result:', imageFile?.path || 'NULL');
+			if (!imageFile) continue;
+
+			// Check if should prompt based on setting
+			if (this.settings.deletePromptBehavior === 'orphan-only') {
+				const backlinks = this.getImageBacklinks(imageFile, notePath);
+				console.debug('[SIR] backlinks:', backlinks);
+				if (backlinks.length > 0) continue; // Not orphaned, skip
+			}
+
+			// Show orphan prompt modal
+			console.debug('[SIR] showing delete modal for:', imageFile.path);
+			this.openDeleteModal(imageFile, true);
+		}
+	}
+
+	/**
+	 * Get notes that link to an image, excluding a specific note
+	 */
+	private getImageBacklinks(imageFile: TFile, excludeNotePath?: string): string[] {
+		const backlinks: string[] = [];
+		const resolvedLinks = this.app.metadataCache.resolvedLinks;
+
+		for (const [notePath, links] of Object.entries(resolvedLinks)) {
+			if (excludeNotePath && notePath === excludeNotePath) continue;
+			if (links[imageFile.path]) {
+				backlinks.push(notePath);
+			}
+		}
+
+		return backlinks;
+	}
+
+	/**
+	 * Open delete confirmation modal
+	 */
+	private openDeleteModal(file: TFile, isOrphanPrompt = false): void {
+		const currentNotePath = this.app.workspace.getActiveFile()?.path;
+		const backlinks = this.getImageBacklinks(file, currentNotePath);
+
+		new DeleteImageModal(
+			this.app,
+			file,
+			{ backlinks, isOrphanPrompt },
+			async () => {
+				try {
+					await this.app.fileManager.trashFile(file);
+					new Notice(t('notices.deleted', { count: 1 }));
+				} catch (error) {
+					new Notice(t('notices.failedToRename', { error: String(error) }));
+				}
+			}
+		).open();
 	}
 }

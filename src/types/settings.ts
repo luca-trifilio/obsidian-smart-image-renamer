@@ -1,3 +1,5 @@
+export type DeletePromptBehavior = 'always' | 'orphan-only' | 'never';
+
 export interface SmartImageRenamerSettings {
 	suffixMode: 'sequential' | 'timestamp';
 	timestampFormat: string;
@@ -21,6 +23,13 @@ export interface SmartImageRenamerSettings {
 	 * Example: [".excalidraw"] removes ".excalidraw" from "MyDrawing.excalidraw.md"
 	 */
 	suffixesToRemove: string[];
+	/**
+	 * When to prompt for deleting image files after removing links.
+	 * - always: Always prompt when deleting image link
+	 * - orphan-only: Prompt only if image not linked elsewhere (default)
+	 * - never: Disable auto-prompt, context menu only
+	 */
+	deletePromptBehavior: DeletePromptBehavior;
 }
 
 export const DEFAULT_SETTINGS: SmartImageRenamerSettings = {
@@ -28,5 +37,6 @@ export const DEFAULT_SETTINGS: SmartImageRenamerSettings = {
 	timestampFormat: 'YYYYMMDD-HHmmss',
 	aggressiveSanitization: false,
 	autoRenameOnCreate: true,
-	suffixesToRemove: ['.excalidraw', '.canvas']
+	suffixesToRemove: ['.excalidraw', '.canvas'],
+	deletePromptBehavior: 'orphan-only'
 };

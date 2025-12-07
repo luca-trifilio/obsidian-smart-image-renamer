@@ -85,11 +85,10 @@ PR #42, commit abc1234
 | `cleanup-betas.yml` | PR chiusa senza merge | cleanup beta releases |
 
 ## Local Testing
-```bash
-npm run build
-cp main.js manifest.json styles.css ~/Documents/Taccuino\ Cerusico/.obsidian/plugins/smart-image-renamer/
-# Reload Obsidian (Cmd+R)
-```
+**NON fare copie locali dei file.** Usare sempre BRAT per testare le beta:
+1. Push branch
+2. PR con label `release:*` genera beta automatica
+3. Testare via BRAT con tag beta
 
 ## Authentication
 - PAT personale in `.env` (non committato)

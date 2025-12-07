@@ -21,7 +21,9 @@
       "WebFetch(domain:forum.obsidian.md)",
       "mcp__github__get_commit",
       "Bash(npm run build:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(npm test:*)"
     ],
     "deny": [],
     "ask": []
