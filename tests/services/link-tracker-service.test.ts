@@ -74,6 +74,18 @@ describe('LinkTrackerService', () => {
 			const links = service.extractImageLinks(content);
 			expect(links).toEqual(new Set(['image.png']));
 		});
+
+		it('should extract path only from wiki-links with caption', () => {
+			const content = '![[image.png|My caption here]]';
+			const links = service.extractImageLinks(content);
+			expect(links).toEqual(new Set(['image.png']));
+		});
+
+		it('should extract path only from wiki-links with caption and size', () => {
+			const content = '![[image.png|Caption|500]]';
+			const links = service.extractImageLinks(content);
+			expect(links).toEqual(new Set(['image.png']));
+		});
 	});
 
 	describe('updateCache', () => {
@@ -104,6 +116,20 @@ describe('LinkTrackerService', () => {
 		it('should return empty array when no links removed', () => {
 			service.updateCache('note.md', '![[image.png]]');
 			const removed = service.detectRemovedLinks('note.md', '![[image.png]] more text');
+			expect(removed).toEqual([]);
+		});
+
+		it('should NOT detect removal when caption is added', () => {
+			// Original: no caption
+			service.updateCache('note.md', '![[image.png]]');
+			// New: with caption - same image, should NOT trigger removal
+			const removed = service.detectRemovedLinks('note.md', '![[image.png|New caption]]');
+			expect(removed).toEqual([]);
+		});
+
+		it('should NOT detect removal when caption is changed', () => {
+			service.updateCache('note.md', '![[image.png|Old caption]]');
+			const removed = service.detectRemovedLinks('note.md', '![[image.png|New caption]]');
 			expect(removed).toEqual([]);
 		});
 
