@@ -77,6 +77,19 @@ describe('FileService', () => {
 			expect(app.vault.createFolder).toHaveBeenCalledWith('path/to');
 			expect(app.vault.createFolder).toHaveBeenCalledWith('path/to/folder');
 		});
+
+		it('should ignore "Folder already exists" error (race condition)', async () => {
+			vi.spyOn(app.vault, 'createFolder').mockRejectedValueOnce(new Error('Folder already exists.'));
+
+			// Should not throw
+			await expect(fileService.ensureFolderExists('new-folder')).resolves.toBeUndefined();
+		});
+
+		it('should throw other errors', async () => {
+			vi.spyOn(app.vault, 'createFolder').mockRejectedValueOnce(new Error('Permission denied'));
+
+			await expect(fileService.ensureFolderExists('new-folder')).rejects.toThrow('Permission denied');
+		});
 	});
 
 	describe('getAvailablePath', () => {

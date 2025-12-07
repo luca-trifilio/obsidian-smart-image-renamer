@@ -43,7 +43,14 @@ export class FileService {
 			currentPath = currentPath ? `${currentPath}/${part}` : part;
 			const existing = this.app.vault.getAbstractFileByPath(currentPath);
 			if (!existing) {
-				await this.app.vault.createFolder(currentPath);
+				try {
+					await this.app.vault.createFolder(currentPath);
+				} catch (error) {
+					// Ignore "Folder already exists" - race condition with Obsidian or sync services
+					if (!(error instanceof Error && error.message.includes('already exists'))) {
+						throw error;
+					}
+				}
 			}
 		}
 	}
