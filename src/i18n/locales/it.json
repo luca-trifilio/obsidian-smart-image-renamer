@@ -70,7 +70,8 @@
 	},
 	"menu": {
 		"renameImage": "Rinomina immagine",
-		"deleteImage": "Elimina immagine"
+		"deleteImage": "Elimina immagine",
+		"editCaption": "Modifica didascalia"
 	},
 	"deleteImage": {
 		"title": "Elimina immagine",
@@ -150,5 +151,12 @@
 		"title": "Rinomina immagine",
 		"current": "Attuale: {{name}}",
 		"rename": "Rinomina"
+	},
+	"captionModal": {
+		"title": "Modifica didascalia",
+		"placeholder": "Inserisci didascalia...",
+		"save": "Salva",
+		"remove": "Rimuovi",
+		"cancel": "Annulla"
 	}
 }

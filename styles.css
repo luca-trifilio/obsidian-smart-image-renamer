@@ -377,6 +377,38 @@
 	margin-bottom: 1em;
 }
 
+/* Caption Modal */
+.caption-modal {
+	max-width: 450px;
+}
+
+.caption-modal-preview {
+	display: flex;
+	justify-content: center;
+	margin-bottom: 1em;
+}
+
+.caption-modal-preview img {
+	max-width: 200px;
+	max-height: 150px;
+	object-fit: contain;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.caption-modal-filename {
+	text-align: center;
+	color: var(--text-muted);
+	font-size: 0.9em;
+	margin-bottom: 1em;
+}
+
+.caption-modal-input {
+	width: 100%;
+	margin-bottom: 1em;
+}
+
 /* Caption display in edit mode */
 /* Display image captions below embedded images in edit/live preview mode */
 .cm-embed-block.cm-embed-image::after,

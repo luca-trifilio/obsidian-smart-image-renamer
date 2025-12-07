@@ -1,7 +1,7 @@
 import { Plugin, TFile, MarkdownView, MarkdownFileInfo, Notice, Menu, Editor, TAbstractFile, debounce } from 'obsidian';
 import { SmartImageRenamerSettings, DEFAULT_SETTINGS } from './src/types/settings';
-import { FileService, ImageProcessor, BulkRenameService, LinkTrackerService } from './src/services';
-import { SmartImageRenamerSettingTab, RenameImageModal, BulkRenameModal, OrphanedImagesModal, DeleteImageModal } from './src/ui';
+import { FileService, ImageProcessor, BulkRenameService, LinkTrackerService, CaptionService } from './src/services';
+import { SmartImageRenamerSettingTab, RenameImageModal, BulkRenameModal, OrphanedImagesModal, DeleteImageModal, CaptionModal } from './src/ui';
 import {
 	sanitizeFilename,
 	isImageFile,
@@ -18,7 +18,9 @@ export default class SmartImageRenamer extends Plugin {
 	private imageProcessor: ImageProcessor;
 	private bulkRenameService: BulkRenameService;
 	private linkTrackerService: LinkTrackerService;
+	private captionService: CaptionService;
 	private pendingImageFile: TFile | undefined;
+	private pendingSourceNote: TFile | undefined;
 	// Track files we're processing to avoid double-renaming
 	private processingFiles: Set<string> = new Set();
 	// Flag to skip file creation events during startup
@@ -35,6 +37,7 @@ export default class SmartImageRenamer extends Plugin {
 		this.imageProcessor = new ImageProcessor(this.fileService, this.settings);
 		this.bulkRenameService = new BulkRenameService(this.app, this.settings);
 		this.linkTrackerService = new LinkTrackerService();
+		this.captionService = new CaptionService();
 
 		// Setup debounced editor change handler
 		this.debouncedEditorChange = debounce(
@@ -228,10 +231,12 @@ export default class SmartImageRenamer extends Plugin {
 		if (!file || !isImageFile(file.extension)) return;
 
 		this.pendingImageFile = file;
+		this.pendingSourceNote = this.app.workspace.getActiveFile() ?? undefined;
 
 		// Clear pending file after a tiny delay
 		setTimeout(() => {
 			this.pendingImageFile = undefined;
+			this.pendingSourceNote = undefined;
 		}, 100);
 	}
 
@@ -239,11 +244,19 @@ export default class SmartImageRenamer extends Plugin {
 		// Check if we have a pending image from DOM right-click
 		if (this.pendingImageFile) {
 			const file = this.pendingImageFile;
+			const sourceNote = this.pendingSourceNote;
 			menu.addItem((item) => {
 				item.setTitle(t('menu.renameImage'))
 					.setIcon('pencil')
 					.onClick(() => this.openRenameModal(file));
 			});
+			if (sourceNote) {
+				menu.addItem((item) => {
+					item.setTitle(t('menu.editCaption'))
+						.setIcon('text-cursor-input')
+						.onClick(() => { void this.openCaptionModal(file, sourceNote); });
+				});
+			}
 			menu.addItem((item) => {
 				item.setTitle(t('menu.deleteImage'))
 					.setIcon('trash')
@@ -267,7 +280,12 @@ export default class SmartImageRenamer extends Plugin {
 				.onClick(() => { this.renameImageFromLink(imageLink, info); });
 		});
 
-		if (resolvedFile) {
+		if (resolvedFile && info.file) {
+			menu.addItem((item) => {
+				item.setTitle(t('menu.editCaption'))
+					.setIcon('text-cursor-input')
+					.onClick(() => { void this.openCaptionModal(resolvedFile, info.file!); });
+			});
 			menu.addItem((item) => {
 				item.setTitle(t('menu.deleteImage'))
 					.setIcon('trash')
@@ -291,6 +309,24 @@ export default class SmartImageRenamer extends Plugin {
 				new Notice(t('notices.failedToRename', { error: String(error) }));
 			}
 		}).open();
+	}
+
+	private async openCaptionModal(imageFile: TFile, sourceNote: TFile): Promise<void> {
+		// Read current note content to find existing caption
+		const content = await this.app.vault.read(sourceNote);
+		const link = this.captionService.findImageLink(content, imageFile.name);
+		const currentCaption = link?.caption ?? null;
+
+		new CaptionModal(
+			this.app,
+			imageFile,
+			sourceNote,
+			this.captionService,
+			currentCaption,
+			async (newContent) => {
+				await this.app.vault.modify(sourceNote, newContent);
+			}
+		).open();
 	}
 
 	private renameImageFromLink(imageName: string, info: MarkdownView | MarkdownFileInfo): void {
