@@ -4,17 +4,14 @@ import { t } from '../i18n';
 export interface DeleteImageModalOptions {
 	/** Notes that link to this image (excluding current note) */
 	backlinks: string[];
-	/** If true, show lightweight orphan prompt with auto-dismiss */
+	/** If true, show lightweight orphan prompt */
 	isOrphanPrompt?: boolean;
-	/** Auto-dismiss timeout in ms (default: 5000 for orphan prompt) */
-	autoDismissMs?: number;
 }
 
 export class DeleteImageModal extends Modal {
 	private file: TFile;
 	private options: DeleteImageModalOptions;
 	private onConfirm: () => void | Promise<void>;
-	private autoDismissTimer: ReturnType<typeof setTimeout> | null = null;
 
 	constructor(
 		app: App,
@@ -34,9 +31,6 @@ export class DeleteImageModal extends Modal {
 
 		if (this.options.isOrphanPrompt) {
 			this.renderOrphanPrompt(contentEl);
-			// Start auto-dismiss timer
-			const timeout = this.options.autoDismissMs ?? 5000;
-			this.autoDismissTimer = setTimeout(() => this.close(), timeout);
 		} else {
 			this.renderFullModal(contentEl);
 		}
@@ -117,17 +111,11 @@ export class DeleteImageModal extends Modal {
 	}
 
 	private confirm(): void {
-		if (this.autoDismissTimer) {
-			clearTimeout(this.autoDismissTimer);
-		}
 		this.close();
 		void this.onConfirm();
 	}
 
 	onClose(): void {
-		if (this.autoDismissTimer) {
-			clearTimeout(this.autoDismissTimer);
-		}
 		this.contentEl.empty();
 	}
 }

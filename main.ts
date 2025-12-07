@@ -115,7 +115,6 @@ export default class SmartImageRenamer extends Plugin {
 		// Monitor editor changes for link removal detection
 		this.registerEvent(
 			this.app.workspace.on('editor-change', (editor, info) => {
-				console.debug('[SIR] editor-change event fired');
 				this.debouncedEditorChange(editor, info);
 			})
 		);
@@ -141,7 +140,6 @@ export default class SmartImageRenamer extends Plugin {
 			this.isStartupComplete = true;
 			// Initialize link cache for currently active note
 			this.initializeLinkCacheForActiveNote();
-			console.debug('[SIR] Plugin startup complete, cache initialized');
 		}, 3000);
 	}
 
@@ -510,14 +508,12 @@ export default class SmartImageRenamer extends Plugin {
 	 * Handle editor changes to detect removed image links
 	 */
 	private handleEditorChange(editor: Editor, info: MarkdownView | MarkdownFileInfo): void {
-		console.debug('[SIR] handleEditorChange called, setting:', this.settings.deletePromptBehavior);
 		if (this.settings.deletePromptBehavior === 'never') return;
 
 		const notePath = info.file?.path;
 		if (!notePath) return;
 
 		const cachedLinks = this.linkTrackerService.getCachedLinks(notePath);
-		console.debug('[SIR] cachedLinks for', notePath, ':', cachedLinks ? [...cachedLinks] : 'NOT CACHED');
 
 		// Skip if cache not initialized (note just opened, wait for active-leaf-change)
 		if (!cachedLinks) {
@@ -526,27 +522,24 @@ export default class SmartImageRenamer extends Plugin {
 
 		const content = editor.getValue();
 		const removedLinks = this.linkTrackerService.detectRemovedLinks(notePath, content);
-		console.debug('[SIR] removedLinks:', removedLinks);
 
 		if (removedLinks.length === 0) return;
 
 		// Process each removed link
 		for (const linkPath of removedLinks) {
-			console.debug('[SIR] processing removed link:', linkPath);
 			const imageFile = this.fileService.resolveImageLink(linkPath, notePath);
-			console.debug('[SIR] resolveImageLink result:', imageFile?.path || 'NULL');
 			if (!imageFile) continue;
+
+			const backlinks = this.getImageBacklinks(imageFile, notePath);
 
 			// Check if should prompt based on setting
 			if (this.settings.deletePromptBehavior === 'orphan-only') {
-				const backlinks = this.getImageBacklinks(imageFile, notePath);
-				console.debug('[SIR] backlinks:', backlinks);
 				if (backlinks.length > 0) continue; // Not orphaned, skip
 			}
 
-			// Show orphan prompt modal
-			console.debug('[SIR] showing delete modal for:', imageFile.path);
-			this.openDeleteModal(imageFile, true);
+			// Show orphan prompt only if truly orphaned
+			const isOrphan = backlinks.length === 0;
+			this.openDeleteModal(imageFile, isOrphan);
 		}
 	}
 

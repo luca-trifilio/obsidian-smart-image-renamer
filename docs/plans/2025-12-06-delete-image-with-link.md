@@ -2,7 +2,7 @@
 
 **Branch:** `feat/delete-image-with-link`
 **PR:** #36
-**Status:** 🔧 In testing
+**Status:** ✅ Ready for review
 
 ## Summary
 
@@ -38,7 +38,7 @@ Add "Delete image" item to existing context menu (after "Rename image").
 3. If link removed and setting allows, show prompt
 4. Debounce 300ms to avoid spam during fast typing
 
-**Prompt:** Lightweight modal "Delete {filename}?" with Yes/No, auto-dismiss after 5s.
+**Prompt:** Lightweight modal "Delete {filename}?" with Yes/No.
 
 ## File Changes
 
@@ -85,16 +85,9 @@ settings.deletePrompt.never: Never
 - Unit tests for settings and link tracker
 - Supporto wikilinks `![[image.png]]` + markdown `![](image.png)`
 - URL-decode per path con spazi (`%20`)
-
-### 🔧 In Progress
-- Auto-prompt on link delete non funziona
-  - Debug logs aggiunti (`console.debug('[SIR]...')`)
-  - In attesa test utente via BRAT
-
-### ❓ Da verificare
-- Cache inizializzata correttamente?
-- `resolveImageLink` trova il file?
-- Backlinks check funziona?
+- Auto-prompt on link delete
+- Cache initialization on plugin startup (3s delay)
+- Rimosso auto-dismiss (modale resta finché l'utente sceglie)
 
 ## Testing
 
@@ -107,12 +100,11 @@ settings.deletePrompt.never: Never
 
 ### Manual Testing
 - [x] Context menu → Delete image → funziona
-- [ ] Delete link in editor → prompt appare
-- [ ] Setting "always" → prompt sempre
+- [x] Delete link in editor → prompt appare
+- [x] Setting "always" → prompt sempre
 - [ ] Setting "orphan-only" → prompt solo se orfana
 - [ ] Setting "never" → nessun prompt
-- [ ] Auto-dismiss 5s su orphan prompt
 
 ## Open Questions
 
-- Perché auto-prompt non scatta? Debug in corso.
+Nessuna.
