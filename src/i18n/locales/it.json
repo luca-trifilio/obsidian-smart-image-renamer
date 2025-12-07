@@ -32,6 +32,13 @@
 			"name": "Sanitizzazione aggressiva dei nomi file",
 			"desc": "Se abilitato, i nomi file vengono convertiti in formato URL-friendly: minuscolo, spazi → underscore, accenti rimossi (é → e). Se disabilitato, vengono rimossi solo i caratteri non validi per il filesystem. Si applica sia alle immagini incollate che alle rinominazioni manuali."
 		},
+		"deletePrompt": {
+			"name": "Prompt eliminazione automatica",
+			"desc": "Quando chiedere se eliminare i file immagine dopo aver rimosso i link",
+			"always": "Chiedi sempre",
+			"orphanOnly": "Solo se orfana",
+			"never": "Mai"
+		},
 		"preview": "Anteprima",
 		"previewExample": "Esempio: {{example}}"
 	},
@@ -62,7 +69,15 @@
 		"movedWithErrors": "Spostate {{success}}, fallite {{failed}}. Controlla la console."
 	},
 	"menu": {
-		"renameImage": "Rinomina immagine"
+		"renameImage": "Rinomina immagine",
+		"deleteImage": "Elimina immagine"
+	},
+	"deleteImage": {
+		"title": "Elimina immagine",
+		"confirm": "Eliminare questa immagine?",
+		"linkedIn_one": "Questa immagine è collegata in {{count}} altra nota:",
+		"linkedIn_other": "Questa immagine è collegata in {{count}} altre note:",
+		"orphanPrompt": "Immagine non più collegata. Eliminare il file?"
 	},
 	"bulkRename": {
 		"title": "Rinomina immagini in blocco",

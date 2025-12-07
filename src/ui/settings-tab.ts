@@ -1,5 +1,5 @@
 import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
-import { SmartImageRenamerSettings } from '../types/settings';
+import { SmartImageRenamerSettings, DeletePromptBehavior } from '../types/settings';
 import { TIMESTAMP_PRESETS, formatTimestamp } from '../utils';
 import { t } from '../i18n';
 
@@ -111,6 +111,20 @@ export class SmartImageRenamerSettingTab extends PluginSettingTab {
 					this.provider.settings.aggressiveSanitization = value;
 					await this.provider.saveSettings();
 					this.display(); // Refresh preview
+				}));
+
+		// Delete Prompt Behavior
+		new Setting(containerEl)
+			.setName(t('settings.deletePrompt.name'))
+			.setDesc(t('settings.deletePrompt.desc'))
+			.addDropdown(dropdown => dropdown
+				.addOption('always', t('settings.deletePrompt.always'))
+				.addOption('orphan-only', t('settings.deletePrompt.orphanOnly'))
+				.addOption('never', t('settings.deletePrompt.never'))
+				.setValue(this.provider.settings.deletePromptBehavior)
+				.onChange(async (value: DeletePromptBehavior) => {
+					this.provider.settings.deletePromptBehavior = value;
+					await this.provider.saveSettings();
 				}));
 
 		// Preview

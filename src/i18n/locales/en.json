@@ -32,6 +32,13 @@
 			"name": "Aggressive filename sanitization",
 			"desc": "When enabled, filenames are converted to URL-friendly format: lowercase, spaces → underscores, accents removed (é → e). When disabled, only invalid filesystem characters are removed. This applies to both pasted images and manual renames."
 		},
+		"deletePrompt": {
+			"name": "Auto-delete prompt",
+			"desc": "When to prompt for deleting image files after removing links",
+			"always": "Always ask",
+			"orphanOnly": "Only if orphaned",
+			"never": "Never"
+		},
 		"preview": "Preview",
 		"previewExample": "Example: {{example}}"
 	},
@@ -62,7 +69,15 @@
 		"movedWithErrors": "Moved {{success}}, failed {{failed}}. Check console."
 	},
 	"menu": {
-		"renameImage": "Rename image"
+		"renameImage": "Rename image",
+		"deleteImage": "Delete image"
+	},
+	"deleteImage": {
+		"title": "Delete image",
+		"confirm": "Delete this image?",
+		"linkedIn_one": "This image is linked in {{count}} other note:",
+		"linkedIn_other": "This image is linked in {{count}} other notes:",
+		"orphanPrompt": "Image no longer linked. Delete file?"
 	},
 	"bulkRename": {
 		"title": "Bulk rename images",
