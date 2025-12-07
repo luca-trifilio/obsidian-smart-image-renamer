@@ -1,0 +1,485 @@
+# Image Captions Feature Plan
+
+Issue: #38
+PR: #39
+
+## Overview
+
+Add caption management to images. Support both wiki-link (`![[img|caption]]`) and markdown (`![caption](img)`) syntax. Caption visible in edit mode via CSS.
+
+## Progress
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Core Caption Service | ✅ Done |
+| 2 | Caption Modal | ✅ Done |
+| 3 | Context Menu Integration | ✅ Done |
+| 4 | CSS Caption Display | ✅ Done |
+| 5 | Extend Rename Modal | ⏳ Pending |
+| 6 | Settings UI | ⏳ Pending |
+| 7 | On-Paste Caption Prompt | ⏳ Pending |
+| 8 | Bulk Caption Modal | ⏳ Pending |
+
+**MVP (v0.10.0)**: Phases 1-4 complete. Users can right-click images to add/edit captions.
+
+## Bugs Found During Testing
+
+### Bug 1: Context menu not working for images with captions
+
+**Symptom**: "Edit caption" appeared but caption wasn't saved. Menu didn't appear on wiki-links.
+
+**Root cause**: `getImageLinkAtCursor()` used `IMAGE_LINK_REGEX` which didn't match `![[image.png|caption]]`.
+
+**Fix**: `83ce6d1` - Switch to `WIKI_IMAGE_REGEX`, add 4 tests for caption variants.
+
+**Lesson**: Need tests for all syntax variants when adding features that affect existing regex.
+
+---
+
+### Bug 2: Context menu shows only "Rename" on wiki-link, menu items missing on markdown
+
+**Symptom**: Right-click on wiki-link text in source mode → no menu items. Right-click on markdown image → only "Rename" shown.
+
+**Root cause**:
+1. `editor.getCursor()` returns text cursor position, not click position
+2. `getImageLinkAtCursor` only checked wiki-link syntax, not markdown
+
+**Fix**:
+- `88e9d4d` - Add `getFirstImageLinkInLine()` as fallback when cursor not on link
+- `71d6c72` - Support markdown syntax `![](image.png)` in both functions
+
+---
+
+### Bug 3: Caption not saving for markdown images with spaces
+
+**Symptom**: Notice "Image link not found: Impianto hi-fi 2.jpeg" when saving caption.
+
+**Root cause**: Markdown uses URL encoding (`Impianto%20hi-fi%202.jpeg`), but `findImageLink` searched for decoded filename (`Impianto hi-fi 2.jpeg`).
+
+**Fix**: `cf6cbf6` - Add `decodeURIComponent()` in `normalizePath()` to decode `%20` → space before comparison.
+
+---
+
+### Bug 4: "Image not found" error when clicking menu items on markdown images
+
+**Symptom**: Menu appeared but clicking "Rename" showed error.
+
+**Root cause**: `getFirstImageLinkInLine` returned URL-encoded path, but `resolveImageLink` needed decoded path.
+
+**Fix**: `09cbe11` - Decode URL in `handleEditorMenu` before calling `resolveImageLink`.
+
+---
+
+### Bug 5: Delete prompt appears when editing caption
+
+**Symptom**: User edits caption on `![[image.png]]`, gets delete prompt asking if they want to delete the image.
+
+**Root cause**: `LinkTrackerService.extractImageLinks` captured full match including caption (`image.png|caption`), so changing from `![[image.png]]` to `![[image.png|New caption]]` was detected as link removal.
+
+**Fix**:
+- `1c7663a` - Extract only path (before `|`) from wiki-links in `extractImageLinks`
+- `995615f` - Add `isEditingCaption` flag to skip detection during caption saves, update cache immediately after save
+
+---
+
+### Bug 6: Filename shown as caption when no explicit caption set
+
+**Symptom**: `![[Dario Bressanini - La scienza delle pulizie 1.png]]` shows the filename as caption.
+
+**Root cause**: Obsidian sets `alt` attribute to filename when no caption. Our CSS `content: attr(alt)` showed this as caption.
+
+**Fix**: `dc53912` - CSS now hides `::after` when `alt` ends with image extension (`.png`, `.jpg`, etc.). Only explicit captions (that don't end with extension) are shown.
+
+---
+
+### Summary
+
+| Bug | Symptom | Root Cause | Fix Commit |
+|-----|---------|------------|------------|
+| 1 | Menu not working with captions | Wrong regex | `83ce6d1` |
+| 2 | Menu missing on wiki-link/markdown | Cursor position + no markdown support | `88e9d4d`, `71d6c72` |
+| 3 | Caption not saving (spaces) | URL encoding not decoded in search | `cf6cbf6` |
+| 4 | "Image not found" on menu click | URL encoding not decoded for resolve | `09cbe11` |
+| 5 | Delete prompt on caption edit | LinkTracker captured caption in path | `1c7663a`, `995615f` |
+| 6 | Filename as caption | CSS showed alt=filename | `dc53912` |
+
+**Key Lessons**:
+- Test all syntax variants (wiki + markdown, with/without caption)
+- URL encoding is common in markdown links, always decode
+- Integration between components needs integration tests, not just unit tests
+- Caption changes must not trigger link removal detection
+
+---
+
+## Syntax Support
+
+### Wiki-link (Obsidian native)
+```markdown
+![[image.png|My caption here]]
+![[image.png|caption|100]]     # with size
+```
+
+### Standard Markdown
+```markdown
+![My caption here](image.png)
+![My caption here](image.png "title")
+```
+
+**Regex patterns needed:**
+```typescript
+// Wiki-link: ![[file.ext|caption]] or ![[file.ext|caption|size]]
+/!\[\[([^\]|]+\.(?:png|jpg|jpeg|gif|webp|bmp|svg|avif|tiff?|ico))(?:\|([^|\]]*?))?(?:\|(\d+))?\]\]/gi
+
+// Markdown: ![alt](path) or ![alt](path "title")
+/!\[([^\]]*)\]\(([^)\s]+\.(?:png|jpg|jpeg|gif|webp|bmp|svg|avif|tiff?|ico))(?:\s+"[^"]*")?\)/gi
+```
+
+---
+
+## Implementation Phases
+
+### Phase 1: Core Caption Service
+
+**File:** `src/services/caption-service.ts`
+
+```typescript
+interface ImageLink {
+  fullMatch: string;
+  filePath: string;
+  caption: string | null;
+  size: string | null;
+  type: 'wiki' | 'markdown';
+  start: number;  // position in text
+  end: number;
+}
+
+class CaptionService {
+  // Parse all image links in text
+  parseImageLinks(content: string): ImageLink[]
+
+  // Find specific image link
+  findImageLink(content: string, imagePath: string): ImageLink | null
+
+  // Update caption for an image (returns new content)
+  setCaption(content: string, imagePath: string, caption: string): string
+
+  // Remove caption from image
+  removeCaption(content: string, imagePath: string): string
+
+  // Generate markdown with caption
+  buildImageLink(imagePath: string, caption: string | null, size: string | null, type: 'wiki' | 'markdown'): string
+}
+```
+
+**Tests:** `tests/services/caption-service.test.ts`
+- Parse wiki-link without caption
+- Parse wiki-link with caption
+- Parse wiki-link with caption and size
+- Parse markdown without caption
+- Parse markdown with caption
+- Set caption on image without existing caption
+- Update existing caption
+- Remove caption
+- Handle multiple images in same file
+- Handle edge cases (special chars in caption, etc.)
+
+---
+
+### Phase 2: Caption Modal (Single Image)
+
+**File:** `src/ui/caption-modal.ts`
+
+```
+┌─────────────────────────────────────────┐
+│ Edit caption                            │
+├─────────────────────────────────────────┤
+│  ┌──────────────┐                       │
+│  │              │                       │
+│  │   [preview]  │  screenshot.png       │
+│  │              │                       │
+│  └──────────────┘                       │
+│                                         │
+│  Caption:                               │
+│  [_________________________________]    │
+│                                         │
+│           [Save]  [Remove]  [Cancel]    │
+└─────────────────────────────────────────┘
+```
+
+**Behavior:**
+- Opens from context menu on image
+- Shows image preview (like issue #12)
+- Input pre-filled if caption exists
+- "Remove" button only shown if caption exists
+- Enter = Save, Esc = Cancel
+
+**i18n keys:**
+```typescript
+captionModal: {
+  title: 'Edit caption',
+  placeholder: 'Enter caption...',
+  save: 'Save',
+  remove: 'Remove',
+  cancel: 'Cancel'
+}
+```
+
+---
+
+### Phase 3: Context Menu Integration
+
+**File:** `main.ts` (extend existing)
+
+Add to image context menu:
+```typescript
+menu.addItem((item) => {
+  item.setTitle(t('contextMenu.editCaption'))
+    .setIcon('text-cursor-input')
+    .onClick(() => {
+      new CaptionModal(this.app, file, sourceNote, captionService).open();
+    });
+});
+```
+
+**Position:** After "Rename image", before separator.
+
+---
+
+### Phase 4: Extend Rename Modal
+
+**File:** `src/ui/rename-modal.ts` (modify)
+
+Add caption field below name input:
+
+```
+│  Name:    [screenshot-2024________]     │
+│  Caption: [Dashboard overview_____]     │  ← NEW
+```
+
+**Changes:**
+- Add `captionEl: HTMLInputElement`
+- Load existing caption on open
+- Save caption along with rename
+- Optional: checkbox "Keep existing caption" when renaming
+
+---
+
+### Phase 5: On-Paste Caption Prompt
+
+**File:** `src/services/image-processor.ts` (modify)
+
+**New setting:** `promptCaptionOnPaste: boolean` (default: false)
+
+**Flow when enabled:**
+1. Image pasted → renamed as usual
+2. After insert, show inline popover near cursor:
+   ```
+   ┌────────────────────────────────┐
+   │ Caption: [______________] [✓] │
+   └────────────────────────────────┘
+   ```
+3. Enter/click = save caption, Esc = skip
+4. Auto-dismiss after 5s if no interaction
+
+**Alternative (simpler):** Open CaptionModal after paste instead of inline popover.
+
+---
+
+### Phase 6: Bulk Caption Modal
+
+**File:** `src/ui/bulk-caption-modal.ts`
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Bulk edit captions                                      │
+├─────────────────────────────────────────────────────────┤
+│ Scope: [Current note ▾]    Filter: [All ▾]              │
+├─────────────────────────────────────────────────────────┤
+│ ┌─────┐ screenshot-1.png                                │
+│ │ img │ [Dashboard overview___________________]         │
+│ └─────┘                                                 │
+│ ┌─────┐ screenshot-2.png                                │
+│ │ img │ [_______________________________________]       │
+│ └─────┘                                                 │
+│ ┌─────┐ diagram.png                      ✓ Has caption  │
+│ │ img │ [System architecture______________]             │
+│ └─────┘                                                 │
+├─────────────────────────────────────────────────────────┤
+│                              [Save all]  [Cancel]       │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Filters:**
+- All
+- Without caption
+- With caption
+
+**Scope:**
+- Current note
+- Vault (if no active note)
+
+**Behavior:**
+- Live preview of changes
+- Only save modified captions
+- Show count of changes
+
+---
+
+### Phase 7: Command Palette
+
+**Commands:**
+| Command | Action |
+|---------|--------|
+| `Smart Renamer: Edit caption` | Open CaptionModal for image under cursor |
+| `Smart Renamer: Bulk edit captions` | Open BulkCaptionModal |
+| `Smart Renamer: Remove all captions` | Remove captions from all images in note (with confirm) |
+
+---
+
+### Phase 8: CSS for Edit Mode Caption Display
+
+**File:** `styles.css`
+
+```css
+/* Display caption below image in edit mode */
+.cm-embed-image {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cm-embed-image::after {
+  content: attr(alt);
+  display: block;
+  font-size: 0.85em;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Hide if no caption */
+.cm-embed-image:not([alt])::after,
+.cm-embed-image[alt=""]::after {
+  display: none;
+}
+```
+
+**Note:** This may require a post-processor to inject `alt` attribute from parsed caption. Investigate Obsidian's `MarkdownPostProcessor` API.
+
+---
+
+## Settings
+
+**New settings in `src/types/settings.ts`:**
+
+```typescript
+interface SmartImageRenamerSettings {
+  // ... existing
+
+  // Caption settings
+  promptCaptionOnPaste: boolean;      // default: false
+  defaultCaptionType: 'wiki' | 'markdown';  // default: 'wiki'
+}
+```
+
+**Settings UI:**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Caption settings                          [heading]     │
+├─────────────────────────────────────────────────────────┤
+│ Prompt for caption on paste               [toggle: off] │
+│ Show caption input after pasting image                  │
+├─────────────────────────────────────────────────────────┤
+│ Default caption syntax                    [dropdown]    │
+│ Wiki-link or standard markdown            wiki ▾        │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## File Structure (Final)
+
+```
+src/
+├── services/
+│   ├── caption-service.ts        # NEW: Caption CRUD
+│   └── ...
+├── ui/
+│   ├── caption-modal.ts          # NEW: Single caption edit
+│   ├── bulk-caption-modal.ts     # NEW: Bulk caption edit
+│   └── ...
+├── utils/
+│   ├── constants.ts              # UPDATE: Add caption regex
+│   └── ...
+└── types/
+    └── settings.ts               # UPDATE: Add caption settings
+```
+
+---
+
+## Implementation Order
+
+| Step | Task | Dependencies | Status |
+|------|------|--------------|--------|
+| 1 | `caption-service.ts` + tests | None | ✅ |
+| 2 | `caption-modal.ts` | Step 1 | ✅ |
+| 3 | Context menu integration | Step 2 | ✅ |
+| 4 | CSS caption display | None (parallel) | ✅ |
+| 5 | Extend `rename-modal.ts` | Step 1 | ⏳ |
+| 6 | Settings UI | None (parallel) | ⏳ |
+| 7 | On-paste prompt | Steps 1, 2, 6 | ⏳ |
+| 8 | `bulk-caption-modal.ts` | Step 1 | ⏳ |
+| 9 | Command palette | Steps 2, 8 | ⏳ |
+
+**MVP released in PR #39** (phases 1-4).
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+- `caption-service.test.ts` - All parsing/mutation logic
+- `caption-modal.test.ts` - Modal behavior (if testable)
+
+### Manual Testing
+
+**MVP (Phases 1-4):**
+- [ ] Add caption via context menu (rendered image)
+- [ ] Add caption via context menu (wiki-link in source)
+- [ ] Edit existing caption
+- [ ] Remove caption via "Remove" button
+- [ ] Caption visible in edit/live preview mode
+- [ ] Caption visible in reading mode
+- [ ] Works with wiki-link syntax `![[img|caption]]`
+- [ ] Works with markdown syntax `![caption](img)`
+- [ ] Works with sized images `![[img|caption|100]]`
+- [ ] Caption survives image rename
+
+**Future Phases (5-8):**
+- [ ] Bulk edit captions
+- [ ] On-paste prompt (if enabled)
+- [ ] Caption field in rename modal
+
+---
+
+## Open Questions (Resolved)
+
+| Question | Decision |
+|----------|----------|
+| Wiki-link or markdown? | Both |
+| Markdown in captions? | No, plain text only (v1) |
+| Auto-generate from filename? | No |
+| Integrate with existing plugins? | No, standalone |
+| Caption in edit mode? | Yes, via CSS |
+
+---
+
+## Future Enhancements (Out of Scope)
+
+- Markdown formatting in captions (bold, links)
+- Caption templates
+- AI-generated captions
+- Caption search/index
+- Export captions to alt text for accessibility

@@ -66,11 +66,15 @@
 		"deletedWithErrors": "Deleted {{success}}, failed {{failed}}. Check console.",
 		"moved_one": "Moved {{count}} image to {{folder}}/",
 		"moved_other": "Moved {{count}} images to {{folder}}/",
-		"movedWithErrors": "Moved {{success}}, failed {{failed}}. Check console."
+		"movedWithErrors": "Moved {{success}}, failed {{failed}}. Check console.",
+		"captionSaved": "Caption saved",
+		"captionRemoved": "Caption removed",
+		"imageLinkNotFound": "Image link not found in note: {{name}}"
 	},
 	"menu": {
 		"renameImage": "Rename image",
-		"deleteImage": "Delete image"
+		"deleteImage": "Delete image",
+		"editCaption": "Edit caption"
 	},
 	"deleteImage": {
 		"title": "Delete image",
@@ -150,5 +154,12 @@
 		"title": "Rename image",
 		"current": "Current: {{name}}",
 		"rename": "Rename"
+	},
+	"captionModal": {
+		"title": "Edit caption",
+		"placeholder": "Enter caption...",
+		"save": "Save",
+		"remove": "Remove",
+		"cancel": "Cancel"
 	}
 }

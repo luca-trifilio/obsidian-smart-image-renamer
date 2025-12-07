@@ -27,11 +27,13 @@ export class LinkTrackerService {
 	extractImageLinks(content: string): Set<string> {
 		const links = new Set<string>();
 
-		// Extract wikilinks: ![[image.png]]
+		// Extract wikilinks: ![[image.png]] or ![[image.png|caption]]
 		let match;
 		const wikiRegex = new RegExp(WIKILINK_IMAGE_REGEX.source, WIKILINK_IMAGE_REGEX.flags);
 		while ((match = wikiRegex.exec(content)) !== null) {
-			const path = match[1];
+			// Extract only the path (before any | for caption/size)
+			const fullMatch = match[1];
+			const path = fullMatch.split('|')[0];
 			if (this.isImagePath(path)) {
 				links.add(path);
 			}

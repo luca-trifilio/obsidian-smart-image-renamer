@@ -20,3 +20,9 @@ export const TIMESTAMP_PRESETS = [
 ] as const;
 
 export const IMAGE_LINK_REGEX = /!\[\[([^\]]+\.(png|jpg|jpeg|gif|webp|bmp|svg|avif|tiff|tif|ico))\]\]/gi;
+
+// Wiki-link with optional caption and size: ![[file.ext]], ![[file.ext|caption]], ![[file.ext|caption|100]]
+export const WIKI_IMAGE_REGEX = /!\[\[([^\]|]+\.(?:png|jpg|jpeg|gif|webp|bmp|svg|avif|tiff?|ico))(?:\|([^|\]]*?))?(?:\|(\d+))?\]\]/gi;
+
+// Markdown image: ![alt](path) or ![alt](path "title")
+export const MARKDOWN_IMAGE_REGEX = /!\[([^\]]*)\]\(([^)\s]+\.(?:png|jpg|jpeg|gif|webp|bmp|svg|avif|tiff?|ico))(?:\s+"[^"]*")?\)/gi;
