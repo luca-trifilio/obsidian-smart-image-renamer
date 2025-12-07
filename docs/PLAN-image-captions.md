@@ -1,10 +1,26 @@
 # Image Captions Feature Plan
 
 Issue: #38
+PR: #39
 
 ## Overview
 
 Add caption management to images. Support both wiki-link (`![[img|caption]]`) and markdown (`![caption](img)`) syntax. Caption visible in edit mode via CSS.
+
+## Progress
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Core Caption Service | ✅ Done |
+| 2 | Caption Modal | ✅ Done |
+| 3 | Context Menu Integration | ✅ Done |
+| 4 | CSS Caption Display | ✅ Done |
+| 5 | Extend Rename Modal | ⏳ Pending |
+| 6 | Settings UI | ⏳ Pending |
+| 7 | On-Paste Caption Prompt | ⏳ Pending |
+| 8 | Bulk Caption Modal | ⏳ Pending |
+
+**MVP (v0.10.0)**: Phases 1-4 complete. Users can right-click images to add/edit captions.
 
 ---
 
@@ -318,19 +334,19 @@ src/
 
 ## Implementation Order
 
-| Step | Task | Dependencies |
-|------|------|--------------|
-| 1 | `caption-service.ts` + tests | None |
-| 2 | `caption-modal.ts` | Step 1 |
-| 3 | Context menu integration | Step 2 |
-| 4 | CSS caption display | None (parallel) |
-| 5 | Extend `rename-modal.ts` | Step 1 |
-| 6 | Settings UI | None (parallel) |
-| 7 | On-paste prompt | Steps 1, 2, 6 |
-| 8 | `bulk-caption-modal.ts` | Step 1 |
-| 9 | Command palette | Steps 2, 8 |
+| Step | Task | Dependencies | Status |
+|------|------|--------------|--------|
+| 1 | `caption-service.ts` + tests | None | ✅ |
+| 2 | `caption-modal.ts` | Step 1 | ✅ |
+| 3 | Context menu integration | Step 2 | ✅ |
+| 4 | CSS caption display | None (parallel) | ✅ |
+| 5 | Extend `rename-modal.ts` | Step 1 | ⏳ |
+| 6 | Settings UI | None (parallel) | ⏳ |
+| 7 | On-paste prompt | Steps 1, 2, 6 | ⏳ |
+| 8 | `bulk-caption-modal.ts` | Step 1 | ⏳ |
+| 9 | Command palette | Steps 2, 8 | ⏳ |
 
-**Estimated steps:** 9 PRs or 1 large PR with incremental commits.
+**MVP released in PR #39** (phases 1-4).
 
 ---
 
@@ -341,17 +357,23 @@ src/
 - `caption-modal.test.ts` - Modal behavior (if testable)
 
 ### Manual Testing
-- [ ] Add caption via context menu
+
+**MVP (Phases 1-4):**
+- [ ] Add caption via context menu (rendered image)
+- [ ] Add caption via context menu (wiki-link in source)
 - [ ] Edit existing caption
-- [ ] Remove caption
-- [ ] Caption survives rename
+- [ ] Remove caption via "Remove" button
+- [ ] Caption visible in edit/live preview mode
+- [ ] Caption visible in reading mode
+- [ ] Works with wiki-link syntax `![[img|caption]]`
+- [ ] Works with markdown syntax `![caption](img)`
+- [ ] Works with sized images `![[img|caption|100]]`
+- [ ] Caption survives image rename
+
+**Future Phases (5-8):**
 - [ ] Bulk edit captions
 - [ ] On-paste prompt (if enabled)
-- [ ] Caption visible in edit mode
-- [ ] Caption visible in reading mode
-- [ ] Works with wiki-link syntax
-- [ ] Works with markdown syntax
-- [ ] Works with sized images `![[img|caption|100]]`
+- [ ] Caption field in rename modal
 
 ---
 
