@@ -293,7 +293,14 @@ export class BulkRenameService {
 	private async ensureFolderExists(folderPath: string): Promise<void> {
 		const folder = this.app.vault.getAbstractFileByPath(folderPath);
 		if (!folder) {
-			await this.app.vault.createFolder(folderPath);
+			try {
+				await this.app.vault.createFolder(folderPath);
+			} catch (error) {
+				// Ignore "Folder already exists" - race condition with Obsidian or sync services
+				if (!(error instanceof Error && error.message.includes('already exists'))) {
+					throw error;
+				}
+			}
 		}
 	}
 
