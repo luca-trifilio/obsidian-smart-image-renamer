@@ -115,6 +115,7 @@ export default class SmartImageRenamer extends Plugin {
 		// Monitor editor changes for link removal detection
 		this.registerEvent(
 			this.app.workspace.on('editor-change', (editor, info) => {
+				console.debug('[SIR] editor-change event fired');
 				this.debouncedEditorChange(editor, info);
 			})
 		);
@@ -140,6 +141,7 @@ export default class SmartImageRenamer extends Plugin {
 			this.isStartupComplete = true;
 			// Initialize link cache for currently active note
 			this.initializeLinkCacheForActiveNote();
+			console.debug('[SIR] Plugin startup complete, cache initialized');
 		}, 3000);
 	}
 
