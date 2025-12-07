@@ -244,6 +244,16 @@ describe('getImageLinkAtCursor', () => {
 		const line = '![[attachments/image.png|Caption]]';
 		expect(getImageLinkAtCursor(line, 15)).toBe('attachments/image.png');
 	});
+
+	it('should handle markdown image syntax', () => {
+		const line = '![caption](image.png)';
+		expect(getImageLinkAtCursor(line, 10)).toBe('image.png');
+	});
+
+	it('should handle markdown image with URL-encoded path', () => {
+		const line = '![](Impianto%20hi-fi%202.jpeg)';
+		expect(getImageLinkAtCursor(line, 10)).toBe('Impianto%20hi-fi%202.jpeg');
+	});
 });
 
 describe('getFirstImageLinkInLine', () => {
@@ -271,6 +281,18 @@ describe('getFirstImageLinkInLine', () => {
 
 	it('should return null for non-image links', () => {
 		expect(getFirstImageLinkInLine('![[document.pdf]]')).toBe(null);
+	});
+
+	it('should handle markdown image syntax', () => {
+		expect(getFirstImageLinkInLine('![caption](image.png)')).toBe('image.png');
+	});
+
+	it('should handle markdown image with URL-encoded path', () => {
+		expect(getFirstImageLinkInLine('![](Impianto%20hi-fi%202.jpeg)')).toBe('Impianto%20hi-fi%202.jpeg');
+	});
+
+	it('should prefer wiki-link over markdown if both present', () => {
+		expect(getFirstImageLinkInLine('![[wiki.png]] ![](md.png)')).toBe('wiki.png');
 	});
 });
 

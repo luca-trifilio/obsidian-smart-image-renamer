@@ -1,4 +1,4 @@
-import { IMAGE_EXTENSIONS, MIME_TO_EXTENSION, WIKI_IMAGE_REGEX } from './constants';
+import { IMAGE_EXTENSIONS, MIME_TO_EXTENSION, WIKI_IMAGE_REGEX, MARKDOWN_IMAGE_REGEX } from './constants';
 
 /** Characters that are invalid in filenames across Windows/Mac/Linux */
 const INVALID_FILENAME_CHARS = /[\\/:*?"<>|]/g;
@@ -60,17 +60,28 @@ export function getExtensionFromMime(mimeType: string): string {
 }
 
 export function getImageLinkAtCursor(line: string, cursorPos: number): string | null {
-	// Use WIKI_IMAGE_REGEX to support images with captions: ![[img|caption]]
-	const regex = new RegExp(WIKI_IMAGE_REGEX.source, 'gi');
+	// Try wiki-link syntax: ![[img|caption]]
+	const wikiRegex = new RegExp(WIKI_IMAGE_REGEX.source, 'gi');
 	let match;
 
-	while ((match = regex.exec(line)) !== null) {
+	while ((match = wikiRegex.exec(line)) !== null) {
 		const start = match.index;
 		const end = start + match[0].length;
 		if (cursorPos >= start && cursorPos <= end) {
-			return match[1]; // Group 1 is the file path (without caption)
+			return match[1]; // Group 1 is the file path
 		}
 	}
+
+	// Try markdown syntax: ![caption](path)
+	const mdRegex = new RegExp(MARKDOWN_IMAGE_REGEX.source, 'gi');
+	while ((match = mdRegex.exec(line)) !== null) {
+		const start = match.index;
+		const end = start + match[0].length;
+		if (cursorPos >= start && cursorPos <= end) {
+			return match[2]; // Group 2 is the file path in markdown
+		}
+	}
+
 	return null;
 }
 
@@ -79,9 +90,17 @@ export function getImageLinkAtCursor(line: string, cursorPos: number): string | 
  * Fallback for context menus when cursor position doesn't match click position.
  */
 export function getFirstImageLinkInLine(line: string): string | null {
-	const regex = new RegExp(WIKI_IMAGE_REGEX.source, 'gi');
-	const match = regex.exec(line);
-	return match ? match[1] : null;
+	// Try wiki-link first
+	const wikiRegex = new RegExp(WIKI_IMAGE_REGEX.source, 'gi');
+	const wikiMatch = wikiRegex.exec(line);
+	if (wikiMatch) return wikiMatch[1];
+
+	// Try markdown syntax
+	const mdRegex = new RegExp(MARKDOWN_IMAGE_REGEX.source, 'gi');
+	const mdMatch = mdRegex.exec(line);
+	if (mdMatch) return mdMatch[2]; // Group 2 is path in markdown
+
+	return null;
 }
 
 export function extractImagePathFromSrc(src: string): string | null {
