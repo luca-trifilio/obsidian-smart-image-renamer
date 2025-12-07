@@ -22,6 +22,25 @@ Add caption management to images. Support both wiki-link (`![[img|caption]]`) an
 
 **MVP (v0.10.0)**: Phases 1-4 complete. Users can right-click images to add/edit captions.
 
+## Bugs Found During Testing
+
+### Bug: Context menu not working for images with captions
+
+**Symptom**: "Edit caption" appeared but caption wasn't saved. Menu didn't appear on wiki-links.
+
+**Root cause**: `getImageLinkAtCursor()` used `IMAGE_LINK_REGEX` which didn't match `![[image.png|caption]]`:
+```typescript
+// OLD - broken
+/!\[\[([^\]]+\.(png|...))\]\]/gi  // [^\]]+ includes |caption in filename!
+
+// NEW - fixed
+WIKI_IMAGE_REGEX  // properly excludes | from filename capture group
+```
+
+**Fix**: `83ce6d1` - Switch to `WIKI_IMAGE_REGEX`, add 4 tests for caption variants.
+
+**Lesson**: Unit tests only covered `![[image.png]]` without caption. Need tests for all syntax variants when adding new features that affect existing regex.
+
 ---
 
 ## Syntax Support
