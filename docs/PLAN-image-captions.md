@@ -24,22 +24,90 @@ Add caption management to images. Support both wiki-link (`![[img|caption]]`) an
 
 ## Bugs Found During Testing
 
-### Bug: Context menu not working for images with captions
+### Bug 1: Context menu not working for images with captions
 
 **Symptom**: "Edit caption" appeared but caption wasn't saved. Menu didn't appear on wiki-links.
 
-**Root cause**: `getImageLinkAtCursor()` used `IMAGE_LINK_REGEX` which didn't match `![[image.png|caption]]`:
-```typescript
-// OLD - broken
-/!\[\[([^\]]+\.(png|...))\]\]/gi  // [^\]]+ includes |caption in filename!
-
-// NEW - fixed
-WIKI_IMAGE_REGEX  // properly excludes | from filename capture group
-```
+**Root cause**: `getImageLinkAtCursor()` used `IMAGE_LINK_REGEX` which didn't match `![[image.png|caption]]`.
 
 **Fix**: `83ce6d1` - Switch to `WIKI_IMAGE_REGEX`, add 4 tests for caption variants.
 
-**Lesson**: Unit tests only covered `![[image.png]]` without caption. Need tests for all syntax variants when adding new features that affect existing regex.
+**Lesson**: Need tests for all syntax variants when adding features that affect existing regex.
+
+---
+
+### Bug 2: Context menu shows only "Rename" on wiki-link, menu items missing on markdown
+
+**Symptom**: Right-click on wiki-link text in source mode → no menu items. Right-click on markdown image → only "Rename" shown.
+
+**Root cause**:
+1. `editor.getCursor()` returns text cursor position, not click position
+2. `getImageLinkAtCursor` only checked wiki-link syntax, not markdown
+
+**Fix**:
+- `88e9d4d` - Add `getFirstImageLinkInLine()` as fallback when cursor not on link
+- `71d6c72` - Support markdown syntax `![](image.png)` in both functions
+
+---
+
+### Bug 3: Caption not saving for markdown images with spaces
+
+**Symptom**: Notice "Image link not found: Impianto hi-fi 2.jpeg" when saving caption.
+
+**Root cause**: Markdown uses URL encoding (`Impianto%20hi-fi%202.jpeg`), but `findImageLink` searched for decoded filename (`Impianto hi-fi 2.jpeg`).
+
+**Fix**: `cf6cbf6` - Add `decodeURIComponent()` in `normalizePath()` to decode `%20` → space before comparison.
+
+---
+
+### Bug 4: "Image not found" error when clicking menu items on markdown images
+
+**Symptom**: Menu appeared but clicking "Rename" showed error.
+
+**Root cause**: `getFirstImageLinkInLine` returned URL-encoded path, but `resolveImageLink` needed decoded path.
+
+**Fix**: `09cbe11` - Decode URL in `handleEditorMenu` before calling `resolveImageLink`.
+
+---
+
+### Bug 5: Delete prompt appears when editing caption
+
+**Symptom**: User edits caption on `![[image.png]]`, gets delete prompt asking if they want to delete the image.
+
+**Root cause**: `LinkTrackerService.extractImageLinks` captured full match including caption (`image.png|caption`), so changing from `![[image.png]]` to `![[image.png|New caption]]` was detected as link removal.
+
+**Fix**:
+- `1c7663a` - Extract only path (before `|`) from wiki-links in `extractImageLinks`
+- `995615f` - Add `isEditingCaption` flag to skip detection during caption saves, update cache immediately after save
+
+---
+
+### Bug 6: Filename shown as caption when no explicit caption set
+
+**Symptom**: `![[Dario Bressanini - La scienza delle pulizie 1.png]]` shows the filename as caption.
+
+**Root cause**: Obsidian sets `alt` attribute to filename when no caption. Our CSS `content: attr(alt)` showed this as caption.
+
+**Fix**: `dc53912` - CSS now hides `::after` when `alt` ends with image extension (`.png`, `.jpg`, etc.). Only explicit captions (that don't end with extension) are shown.
+
+---
+
+### Summary
+
+| Bug | Symptom | Root Cause | Fix Commit |
+|-----|---------|------------|------------|
+| 1 | Menu not working with captions | Wrong regex | `83ce6d1` |
+| 2 | Menu missing on wiki-link/markdown | Cursor position + no markdown support | `88e9d4d`, `71d6c72` |
+| 3 | Caption not saving (spaces) | URL encoding not decoded in search | `cf6cbf6` |
+| 4 | "Image not found" on menu click | URL encoding not decoded for resolve | `09cbe11` |
+| 5 | Delete prompt on caption edit | LinkTracker captured caption in path | `1c7663a`, `995615f` |
+| 6 | Filename as caption | CSS showed alt=filename | `dc53912` |
+
+**Key Lessons**:
+- Test all syntax variants (wiki + markdown, with/without caption)
+- URL encoding is common in markdown links, always decode
+- Integration between components needs integration tests, not just unit tests
+- Caption changes must not trigger link removal detection
 
 ---
 
