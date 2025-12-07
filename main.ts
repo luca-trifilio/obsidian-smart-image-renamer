@@ -24,6 +24,8 @@ export default class SmartImageRenamer extends Plugin {
 	private pendingSourceNote: TFile | undefined;
 	// Track files we're processing to avoid double-renaming
 	private processingFiles: Set<string> = new Set();
+	// Skip link removal detection during caption edits
+	private isEditingCaption: boolean = false;
 	// Flag to skip file creation events during startup
 	private isStartupComplete: boolean = false;
 	// Flag to force rename (skip generic name check) - set during Excalidraw drops
@@ -335,7 +337,13 @@ export default class SmartImageRenamer extends Plugin {
 			this.captionService,
 			currentCaption,
 			async (newContent) => {
+				// Skip link removal detection during caption save
+				this.isEditingCaption = true;
 				await this.app.vault.modify(sourceNote, newContent);
+				// Update link cache with new content to prevent false removal detection
+				this.linkTrackerService.updateCache(sourceNote.path, newContent);
+				// Reset flag after a short delay
+				setTimeout(() => { this.isEditingCaption = false; }, 100);
 			}
 		).open();
 	}
@@ -556,6 +564,8 @@ export default class SmartImageRenamer extends Plugin {
 	 */
 	private handleEditorChange(editor: Editor, info: MarkdownView | MarkdownFileInfo): void {
 		if (this.settings.deletePromptBehavior === 'never') return;
+		// Skip during caption edits (we're modifying the link, not removing it)
+		if (this.isEditingCaption) return;
 
 		const notePath = info.file?.path;
 		if (!notePath) return;
