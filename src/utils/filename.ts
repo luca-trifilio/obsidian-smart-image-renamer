@@ -1,4 +1,4 @@
-import { IMAGE_EXTENSIONS, MIME_TO_EXTENSION, IMAGE_LINK_REGEX, WIKI_IMAGE_REGEX } from './constants';
+import { IMAGE_EXTENSIONS, MIME_TO_EXTENSION, WIKI_IMAGE_REGEX } from './constants';
 
 /** Characters that are invalid in filenames across Windows/Mac/Linux */
 const INVALID_FILENAME_CHARS = /[\\/:*?"<>|]/g;
