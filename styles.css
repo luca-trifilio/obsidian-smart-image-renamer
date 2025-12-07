@@ -411,6 +411,7 @@
 
 /* Caption display in edit mode */
 /* Display image captions below embedded images in edit/live preview mode */
+/* Only show when alt exists and is NOT a filename (doesn't end with image extension) */
 .cm-embed-block.cm-embed-image::after,
 .internal-embed.image-embed::after {
 	content: attr(alt);
@@ -423,10 +424,32 @@
 	line-height: 1.3;
 }
 
-/* Hide caption pseudo-element if no alt text */
+/* Hide caption when no alt, empty alt, or alt is a filename (ends with image extension) */
 .cm-embed-block.cm-embed-image:not([alt])::after,
 .cm-embed-block.cm-embed-image[alt=""]::after,
+.cm-embed-block.cm-embed-image[alt$=".png"]::after,
+.cm-embed-block.cm-embed-image[alt$=".jpg"]::after,
+.cm-embed-block.cm-embed-image[alt$=".jpeg"]::after,
+.cm-embed-block.cm-embed-image[alt$=".gif"]::after,
+.cm-embed-block.cm-embed-image[alt$=".webp"]::after,
+.cm-embed-block.cm-embed-image[alt$=".svg"]::after,
+.cm-embed-block.cm-embed-image[alt$=".bmp"]::after,
+.cm-embed-block.cm-embed-image[alt$=".avif"]::after,
+.cm-embed-block.cm-embed-image[alt$=".tiff"]::after,
+.cm-embed-block.cm-embed-image[alt$=".tif"]::after,
+.cm-embed-block.cm-embed-image[alt$=".ico"]::after,
 .internal-embed.image-embed:not([alt])::after,
-.internal-embed.image-embed[alt=""]::after {
+.internal-embed.image-embed[alt=""]::after,
+.internal-embed.image-embed[alt$=".png"]::after,
+.internal-embed.image-embed[alt$=".jpg"]::after,
+.internal-embed.image-embed[alt$=".jpeg"]::after,
+.internal-embed.image-embed[alt$=".gif"]::after,
+.internal-embed.image-embed[alt$=".webp"]::after,
+.internal-embed.image-embed[alt$=".svg"]::after,
+.internal-embed.image-embed[alt$=".bmp"]::after,
+.internal-embed.image-embed[alt$=".avif"]::after,
+.internal-embed.image-embed[alt$=".tiff"]::after,
+.internal-embed.image-embed[alt$=".tif"]::after,
+.internal-embed.image-embed[alt$=".ico"]::after {
 	display: none;
 }
