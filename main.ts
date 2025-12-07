@@ -266,14 +266,22 @@ export default class SmartImageRenamer extends Plugin {
 			return;
 		}
 
-		// Check if cursor is on a wikilink
+		// Check if cursor is on a wikilink or markdown image
 		const cursor = editor.getCursor();
 		const line = editor.getLine(cursor.line);
 		// Try cursor position first, then fallback to first image in line
 		// (right-click may not move cursor to click position in source mode)
-		const imageLink = getImageLinkAtCursor(line, cursor.ch) || getFirstImageLinkInLine(line);
+		const rawImageLink = getImageLinkAtCursor(line, cursor.ch) || getFirstImageLinkInLine(line);
 
-		if (!imageLink) return;
+		if (!rawImageLink) return;
+
+		// Decode URL-encoded paths (markdown syntax uses %20 for spaces, etc.)
+		let imageLink: string;
+		try {
+			imageLink = decodeURIComponent(rawImageLink);
+		} catch {
+			imageLink = rawImageLink;
+		}
 
 		const resolvedFile = this.fileService.resolveImageLink(imageLink, info.file?.path || '');
 
