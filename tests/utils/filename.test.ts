@@ -223,6 +223,26 @@ describe('getImageLinkAtCursor', () => {
 	it('should return null for empty line', () => {
 		expect(getImageLinkAtCursor('', 0)).toBe(null);
 	});
+
+	it('should handle images with caption', () => {
+		const line = '![[image.png|My caption here]]';
+		expect(getImageLinkAtCursor(line, 10)).toBe('image.png');
+	});
+
+	it('should handle images with caption and size', () => {
+		const line = '![[image.png|Caption|500]]';
+		expect(getImageLinkAtCursor(line, 10)).toBe('image.png');
+	});
+
+	it('should handle images with size only', () => {
+		const line = '![[image.png||300]]';
+		expect(getImageLinkAtCursor(line, 10)).toBe('image.png');
+	});
+
+	it('should handle images with path and caption', () => {
+		const line = '![[attachments/image.png|Caption]]';
+		expect(getImageLinkAtCursor(line, 15)).toBe('attachments/image.png');
+	});
 });
 
 describe('extractImagePathFromSrc', () => {

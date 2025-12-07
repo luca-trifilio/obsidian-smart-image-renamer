@@ -1,4 +1,4 @@
-import { IMAGE_EXTENSIONS, MIME_TO_EXTENSION, IMAGE_LINK_REGEX } from './constants';
+import { IMAGE_EXTENSIONS, MIME_TO_EXTENSION, IMAGE_LINK_REGEX, WIKI_IMAGE_REGEX } from './constants';
 
 /** Characters that are invalid in filenames across Windows/Mac/Linux */
 const INVALID_FILENAME_CHARS = /[\\/:*?"<>|]/g;
@@ -60,15 +60,15 @@ export function getExtensionFromMime(mimeType: string): string {
 }
 
 export function getImageLinkAtCursor(line: string, cursorPos: number): string | null {
-	// Reset regex lastIndex for fresh search
-	const regex = new RegExp(IMAGE_LINK_REGEX.source, 'gi');
+	// Use WIKI_IMAGE_REGEX to support images with captions: ![[img|caption]]
+	const regex = new RegExp(WIKI_IMAGE_REGEX.source, 'gi');
 	let match;
 
 	while ((match = regex.exec(line)) !== null) {
 		const start = match.index;
 		const end = start + match[0].length;
 		if (cursorPos >= start && cursorPos <= end) {
-			return match[1];
+			return match[1]; // Group 1 is the file path (without caption)
 		}
 	}
 	return null;
