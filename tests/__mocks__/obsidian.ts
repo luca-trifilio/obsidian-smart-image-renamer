@@ -191,6 +191,9 @@ export class MetadataCache extends MockEventEmitter {
 	private fileCache: Map<string, CachedMetadata> = new Map();
 	private linkResolver: ((linkpath: string, sourcePath: string) => TFile | null) | null = null;
 
+	/** Maps note paths to their outgoing links: { "note.md": { "image.png": 1 } } */
+	resolvedLinks: Record<string, Record<string, number>> = {};
+
 	getFirstLinkpathDest(linkpath: string, sourcePath: string): TFile | null {
 		if (this.linkResolver) {
 			return this.linkResolver(linkpath, sourcePath);
@@ -211,9 +214,14 @@ export class MetadataCache extends MockEventEmitter {
 		this.linkResolver = resolver;
 	}
 
+	_setResolvedLinks(links: Record<string, Record<string, number>>): void {
+		this.resolvedLinks = links;
+	}
+
 	_clear(): void {
 		this.fileCache.clear();
 		this.linkResolver = null;
+		this.resolvedLinks = {};
 		this._clearHandlers();
 	}
 }

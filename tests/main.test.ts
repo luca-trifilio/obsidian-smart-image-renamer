@@ -33,6 +33,8 @@ let renameImageModalCalls: { file: any; callback: Function }[] = [];
 let lastRenameModalCallback: Function | null = null;
 // Track OrphanedImagesModal calls
 let orphanedImagesModalCalls: any[] = [];
+// Track DeleteImageModal calls
+let deleteImageModalCalls: { file: any; options: any; callback: Function }[] = [];
 
 // Mock the UI modules to avoid side effects
 vi.mock('../src/ui', () => ({
@@ -49,6 +51,10 @@ vi.mock('../src/ui', () => ({
 	OrphanedImagesModal: vi.fn().mockImplementation((...args: any[]) => {
 		orphanedImagesModalCalls.push(args);
 		return { open: vi.fn() };
+	}),
+	DeleteImageModal: vi.fn().mockImplementation((app: any, file: any, options: any, callback: Function) => {
+		deleteImageModalCalls.push({ file, options, callback });
+		return { open: vi.fn() };
 	})
 }));
 
@@ -63,6 +69,7 @@ describe('SmartImageRenamer', () => {
 		renameImageModalCalls = [];
 		lastRenameModalCallback = null;
 		orphanedImagesModalCalls = [];
+		deleteImageModalCalls = [];
 
 		plugin = new SmartImageRenamer();
 		// Don't call onload yet - individual tests will do this as needed
@@ -1795,6 +1802,201 @@ describe('SmartImageRenamer', () => {
 			await promise;
 
 			expect((plugin as any).fileService.renameFile).toHaveBeenCalled();
+		});
+	});
+
+	// ============================================
+	// Delete Image with Backlinks Detection Tests
+	// ============================================
+	describe('getImageBacklinks', () => {
+		beforeEach(async () => {
+			await plugin.onload();
+			// Advance past startup delay
+			await vi.advanceTimersByTimeAsync(3500);
+		});
+
+		it('should return empty array when no backlinks exist', () => {
+			const imageFile = new TFile('attachments/image.png');
+			(plugin.app.metadataCache as any)._setResolvedLinks({});
+
+			const backlinks = (plugin as any).getImageBacklinks(imageFile);
+
+			expect(backlinks).toEqual([]);
+		});
+
+		it('should find backlinks to an image', () => {
+			const imageFile = new TFile('attachments/image.png');
+			(plugin.app.metadataCache as any)._setResolvedLinks({
+				'notes/note1.md': { 'attachments/image.png': 1 },
+				'notes/note2.md': { 'attachments/image.png': 1 }
+			});
+
+			const backlinks = (plugin as any).getImageBacklinks(imageFile);
+
+			expect(backlinks).toHaveLength(2);
+			expect(backlinks).toContain('notes/note1.md');
+			expect(backlinks).toContain('notes/note2.md');
+		});
+
+		it('should exclude specified note from backlinks', () => {
+			const imageFile = new TFile('attachments/image.png');
+			(plugin.app.metadataCache as any)._setResolvedLinks({
+				'notes/note1.md': { 'attachments/image.png': 1 },
+				'notes/note2.md': { 'attachments/image.png': 1 }
+			});
+
+			const backlinks = (plugin as any).getImageBacklinks(imageFile, 'notes/note1.md');
+
+			expect(backlinks).toHaveLength(1);
+			expect(backlinks).toContain('notes/note2.md');
+			expect(backlinks).not.toContain('notes/note1.md');
+		});
+
+		it('should not include notes that do not link to the image', () => {
+			const imageFile = new TFile('attachments/image.png');
+			(plugin.app.metadataCache as any)._setResolvedLinks({
+				'notes/note1.md': { 'attachments/image.png': 1 },
+				'notes/note2.md': { 'attachments/other.png': 1 }
+			});
+
+			const backlinks = (plugin as any).getImageBacklinks(imageFile);
+
+			expect(backlinks).toHaveLength(1);
+			expect(backlinks).toContain('notes/note1.md');
+		});
+	});
+
+	describe('handleEditorChange - delete prompt with backlinks', () => {
+		let mockEditor: Editor;
+		let mockView: MarkdownView;
+		const activeFile = new TFile('notes/current-note.md');
+
+		beforeEach(async () => {
+			await plugin.onload();
+			// Advance past startup delay
+			await vi.advanceTimersByTimeAsync(3500);
+
+			plugin.settings.deletePromptBehavior = 'always';
+
+			mockEditor = {
+				getValue: vi.fn().mockReturnValue('some text without image'),
+				getCursor: vi.fn().mockReturnValue({ line: 0, ch: 0 }),
+				getLine: vi.fn().mockReturnValue('')
+			} as unknown as Editor;
+
+			mockView = {
+				file: activeFile,
+				editor: mockEditor
+			} as unknown as MarkdownView;
+
+			(plugin.app.workspace as Workspace)._setActiveFile(activeFile);
+		});
+
+		it('should show orphan prompt (isOrphanPrompt=true) when image has no other backlinks', async () => {
+			const imageFile = new TFile('attachments/image.png');
+
+			// Setup: image was in cache, now removed
+			(plugin as any).linkTrackerService.updateCache('notes/current-note.md', '![[image.png]]');
+
+			// No backlinks to this image
+			(plugin.app.metadataCache as any)._setResolvedLinks({});
+
+			// Mock resolving the image link
+			(plugin as any).fileService.resolveImageLink = vi.fn().mockReturnValue(imageFile);
+
+			// Trigger editor change (image link removed)
+			(mockEditor.getValue as any).mockReturnValue('');
+			(plugin as any).handleEditorChange(mockEditor, mockView);
+
+			expect(deleteImageModalCalls).toHaveLength(1);
+			expect(deleteImageModalCalls[0].file).toBe(imageFile);
+			expect(deleteImageModalCalls[0].options.isOrphanPrompt).toBe(true);
+			expect(deleteImageModalCalls[0].options.backlinks).toEqual([]);
+		});
+
+		it('should show full modal (isOrphanPrompt=false) when image has backlinks elsewhere', async () => {
+			const imageFile = new TFile('attachments/image.png');
+
+			// Setup: image was in cache, now removed from current note
+			(plugin as any).linkTrackerService.updateCache('notes/current-note.md', '![[image.png]]');
+
+			// Image is still linked in another note
+			(plugin.app.metadataCache as any)._setResolvedLinks({
+				'notes/other-note.md': { 'attachments/image.png': 1 }
+			});
+
+			// Mock resolving the image link
+			(plugin as any).fileService.resolveImageLink = vi.fn().mockReturnValue(imageFile);
+
+			// Trigger editor change (image link removed)
+			(mockEditor.getValue as any).mockReturnValue('');
+			(plugin as any).handleEditorChange(mockEditor, mockView);
+
+			expect(deleteImageModalCalls).toHaveLength(1);
+			expect(deleteImageModalCalls[0].file).toBe(imageFile);
+			expect(deleteImageModalCalls[0].options.isOrphanPrompt).toBe(false);
+			expect(deleteImageModalCalls[0].options.backlinks).toContain('notes/other-note.md');
+		});
+
+		it('should skip prompt in orphan-only mode when image has backlinks', async () => {
+			plugin.settings.deletePromptBehavior = 'orphan-only';
+
+			const imageFile = new TFile('attachments/image.png');
+
+			// Setup: image was in cache, now removed from current note
+			(plugin as any).linkTrackerService.updateCache('notes/current-note.md', '![[image.png]]');
+
+			// Image is still linked in another note
+			(plugin.app.metadataCache as any)._setResolvedLinks({
+				'notes/other-note.md': { 'attachments/image.png': 1 }
+			});
+
+			// Mock resolving the image link
+			(plugin as any).fileService.resolveImageLink = vi.fn().mockReturnValue(imageFile);
+
+			// Trigger editor change (image link removed)
+			(mockEditor.getValue as any).mockReturnValue('');
+			(plugin as any).handleEditorChange(mockEditor, mockView);
+
+			// Should NOT show modal because image is not orphaned
+			expect(deleteImageModalCalls).toHaveLength(0);
+		});
+
+		it('should show prompt in orphan-only mode when image is truly orphaned', async () => {
+			plugin.settings.deletePromptBehavior = 'orphan-only';
+
+			const imageFile = new TFile('attachments/image.png');
+
+			// Setup: image was in cache, now removed from current note
+			(plugin as any).linkTrackerService.updateCache('notes/current-note.md', '![[image.png]]');
+
+			// No backlinks anywhere
+			(plugin.app.metadataCache as any)._setResolvedLinks({});
+
+			// Mock resolving the image link
+			(plugin as any).fileService.resolveImageLink = vi.fn().mockReturnValue(imageFile);
+
+			// Trigger editor change (image link removed)
+			(mockEditor.getValue as any).mockReturnValue('');
+			(plugin as any).handleEditorChange(mockEditor, mockView);
+
+			// Should show modal because image is orphaned
+			expect(deleteImageModalCalls).toHaveLength(1);
+			expect(deleteImageModalCalls[0].options.isOrphanPrompt).toBe(true);
+		});
+
+		it('should not prompt when setting is never', async () => {
+			plugin.settings.deletePromptBehavior = 'never';
+
+			// Setup: image was in cache, now removed from current note
+			(plugin as any).linkTrackerService.updateCache('notes/current-note.md', '![[image.png]]');
+
+			// Trigger editor change (image link removed)
+			(mockEditor.getValue as any).mockReturnValue('');
+			(plugin as any).handleEditorChange(mockEditor, mockView);
+
+			// Should NOT show modal
+			expect(deleteImageModalCalls).toHaveLength(0);
 		});
 	});
 });

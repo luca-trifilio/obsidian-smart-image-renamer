@@ -550,6 +550,10 @@ export default class SmartImageRenamer extends Plugin {
 		const backlinks: string[] = [];
 		const resolvedLinks = this.app.metadataCache.resolvedLinks;
 
+		console.debug('[SIR] getImageBacklinks - imageFile.path:', imageFile.path);
+		console.debug('[SIR] getImageBacklinks - excludeNotePath:', excludeNotePath);
+		console.debug('[SIR] getImageBacklinks - resolvedLinks:', JSON.stringify(resolvedLinks, null, 2));
+
 		for (const [notePath, links] of Object.entries(resolvedLinks)) {
 			if (excludeNotePath && notePath === excludeNotePath) continue;
 			if (links[imageFile.path]) {
@@ -557,6 +561,7 @@ export default class SmartImageRenamer extends Plugin {
 			}
 		}
 
+		console.debug('[SIR] getImageBacklinks - result:', backlinks);
 		return backlinks;
 	}
 
