@@ -5,6 +5,7 @@ import {
 	isImageFile,
 	getExtensionFromMime,
 	getImageLinkAtCursor,
+	getFirstImageLinkInLine,
 	extractImagePathFromSrc,
 	removeNoteSuffixes
 } from '../../src/utils/filename';
@@ -222,6 +223,76 @@ describe('getImageLinkAtCursor', () => {
 
 	it('should return null for empty line', () => {
 		expect(getImageLinkAtCursor('', 0)).toBe(null);
+	});
+
+	it('should handle images with caption', () => {
+		const line = '![[image.png|My caption here]]';
+		expect(getImageLinkAtCursor(line, 10)).toBe('image.png');
+	});
+
+	it('should handle images with caption and size', () => {
+		const line = '![[image.png|Caption|500]]';
+		expect(getImageLinkAtCursor(line, 10)).toBe('image.png');
+	});
+
+	it('should handle images with size only', () => {
+		const line = '![[image.png||300]]';
+		expect(getImageLinkAtCursor(line, 10)).toBe('image.png');
+	});
+
+	it('should handle images with path and caption', () => {
+		const line = '![[attachments/image.png|Caption]]';
+		expect(getImageLinkAtCursor(line, 15)).toBe('attachments/image.png');
+	});
+
+	it('should handle markdown image syntax', () => {
+		const line = '![caption](image.png)';
+		expect(getImageLinkAtCursor(line, 10)).toBe('image.png');
+	});
+
+	it('should handle markdown image with URL-encoded path', () => {
+		const line = '![](Impianto%20hi-fi%202.jpeg)';
+		expect(getImageLinkAtCursor(line, 10)).toBe('Impianto%20hi-fi%202.jpeg');
+	});
+});
+
+describe('getFirstImageLinkInLine', () => {
+	it('should return first image in line', () => {
+		expect(getFirstImageLinkInLine('![[image.png]]')).toBe('image.png');
+		expect(getFirstImageLinkInLine('Some text ![[image.png]] more')).toBe('image.png');
+	});
+
+	it('should return first image when multiple exist', () => {
+		expect(getFirstImageLinkInLine('![[first.png]] and ![[second.jpg]]')).toBe('first.png');
+	});
+
+	it('should handle image with caption', () => {
+		expect(getFirstImageLinkInLine('![[image.png|My caption]]')).toBe('image.png');
+	});
+
+	it('should handle image with path', () => {
+		expect(getFirstImageLinkInLine('![[attachments/image.png]]')).toBe('attachments/image.png');
+	});
+
+	it('should return null for no images', () => {
+		expect(getFirstImageLinkInLine('No images here')).toBe(null);
+		expect(getFirstImageLinkInLine('')).toBe(null);
+	});
+
+	it('should return null for non-image links', () => {
+		expect(getFirstImageLinkInLine('![[document.pdf]]')).toBe(null);
+	});
+
+	it('should handle markdown image syntax', () => {
+		expect(getFirstImageLinkInLine('![caption](image.png)')).toBe('image.png');
+	});
+
+	it('should handle markdown image with URL-encoded path', () => {
+		expect(getFirstImageLinkInLine('![](Impianto%20hi-fi%202.jpeg)')).toBe('Impianto%20hi-fi%202.jpeg');
+	});
+
+	it('should prefer wiki-link over markdown if both present', () => {
+		expect(getFirstImageLinkInLine('![[wiki.png]] ![](md.png)')).toBe('wiki.png');
 	});
 });
 

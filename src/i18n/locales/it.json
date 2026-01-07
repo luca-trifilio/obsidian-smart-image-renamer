@@ -66,11 +66,15 @@
 		"deletedWithErrors": "Eliminate {{success}}, fallite {{failed}}. Controlla la console.",
 		"moved_one": "Spostata {{count}} immagine in {{folder}}/",
 		"moved_other": "Spostate {{count}} immagini in {{folder}}/",
-		"movedWithErrors": "Spostate {{success}}, fallite {{failed}}. Controlla la console."
+		"movedWithErrors": "Spostate {{success}}, fallite {{failed}}. Controlla la console.",
+		"captionSaved": "Didascalia salvata",
+		"captionRemoved": "Didascalia rimossa",
+		"imageLinkNotFound": "Link immagine non trovato nella nota: {{name}}"
 	},
 	"menu": {
 		"renameImage": "Rinomina immagine",
-		"deleteImage": "Elimina immagine"
+		"deleteImage": "Elimina immagine",
+		"editCaption": "Modifica didascalia"
 	},
 	"deleteImage": {
 		"title": "Elimina immagine",
@@ -150,5 +154,12 @@
 		"title": "Rinomina immagine",
 		"current": "Attuale: {{name}}",
 		"rename": "Rinomina"
+	},
+	"captionModal": {
+		"title": "Modifica didascalia",
+		"placeholder": "Inserisci didascalia...",
+		"save": "Salva",
+		"remove": "Rimuovi",
+		"cancel": "Annulla"
 	}
 }

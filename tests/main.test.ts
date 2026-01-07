@@ -1057,10 +1057,22 @@ describe('SmartImageRenamer', () => {
 			expect(item).toBeDefined();
 		});
 
-		it('should NOT add menu item when cursor is not on image wikilink', () => {
+		it('should add menu item when cursor is not on image but line has image (fallback)', () => {
+			// New behavior: fallback to first image in line when cursor is elsewhere
 			(plugin as any).pendingImageFile = undefined;
 			editor.getCursor = vi.fn().mockReturnValue({ line: 0, ch: 5 });
 			editor.getLine = vi.fn().mockReturnValue('Some text ![[image.png]] more text');
+
+			(plugin as any).handleEditorMenu(menu, editor, markdownView);
+
+			const item = menu._findItem('Rename image');
+			expect(item).toBeDefined();
+		});
+
+		it('should NOT add menu item when line has no image', () => {
+			(plugin as any).pendingImageFile = undefined;
+			editor.getCursor = vi.fn().mockReturnValue({ line: 0, ch: 5 });
+			editor.getLine = vi.fn().mockReturnValue('Some text without images');
 
 			(plugin as any).handleEditorMenu(menu, editor, markdownView);
 
