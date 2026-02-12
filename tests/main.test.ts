@@ -1170,6 +1170,124 @@ describe('SmartImageRenamer', () => {
 
 			expect((plugin as any).pendingImageFile).toBeUndefined();
 		});
+
+		it('should find image when target is wrapper div containing img (Obsidian 1.12)', () => {
+			const imageFile = new TFile('attachments/photo.png');
+			(plugin.app.vault as Vault)._addFile(imageFile);
+			(plugin as any).fileService.findFileByName = vi.fn().mockReturnValue(imageFile);
+
+			const wrapper = document.createElement('div');
+			const img = document.createElement('img');
+			img.setAttribute('src', 'attachments/photo.png');
+			wrapper.appendChild(img);
+
+			const evt = createMockMouseEvent({ target: wrapper });
+			(plugin as any).handleImageContextMenu(evt);
+
+			expect((plugin as any).pendingImageFile).toBe(imageFile);
+		});
+
+		it('should find image when target is inside embed block (resize handle scenario)', () => {
+			const imageFile = new TFile('attachments/photo.png');
+			(plugin.app.vault as Vault)._addFile(imageFile);
+			(plugin as any).fileService.findFileByName = vi.fn().mockReturnValue(imageFile);
+
+			// Simulate: .cm-embed-block.cm-embed-image > div.resize-handle + img
+			const embedBlock = document.createElement('div');
+			embedBlock.classList.add('cm-embed-block', 'cm-embed-image');
+			const img = document.createElement('img');
+			img.setAttribute('src', 'attachments/photo.png');
+			const resizeHandle = document.createElement('div');
+			resizeHandle.classList.add('resize-handle');
+			embedBlock.appendChild(img);
+			embedBlock.appendChild(resizeHandle);
+
+			const evt = createMockMouseEvent({ target: resizeHandle });
+			(plugin as any).handleImageContextMenu(evt);
+
+			expect((plugin as any).pendingImageFile).toBe(imageFile);
+		});
+
+		it('should return undefined from findImageElement when no img found anywhere', () => {
+			const plainDiv = document.createElement('div');
+			plainDiv.textContent = 'no image here';
+
+			const result = (plugin as any).findImageElement(plainDiv);
+			expect(result).toBeNull();
+		});
+	});
+
+	describe('findImageElement', () => {
+		beforeEach(async () => {
+			await plugin.onload();
+			vi.advanceTimersByTime(3000);
+		});
+
+		it('should return img when target IS img', () => {
+			const img = document.createElement('img');
+			img.setAttribute('src', 'test.png');
+
+			const result = (plugin as any).findImageElement(img);
+			expect(result).toBe(img);
+			expect(result?.tagName).toBe('IMG');
+		});
+
+		it('should return img when target is wrapper with img child', () => {
+			const wrapper = document.createElement('div');
+			const img = document.createElement('img');
+			img.setAttribute('src', 'test.png');
+			wrapper.appendChild(img);
+
+			const result = (plugin as any).findImageElement(wrapper);
+			expect(result).toBe(img);
+		});
+
+		it('should return img when target is nested inside embed block', () => {
+			const embedBlock = document.createElement('div');
+			embedBlock.classList.add('cm-embed-block', 'cm-embed-image');
+			const innerDiv = document.createElement('div');
+			const img = document.createElement('img');
+			img.setAttribute('src', 'test.png');
+			embedBlock.appendChild(innerDiv);
+			embedBlock.appendChild(img);
+
+			const result = (plugin as any).findImageElement(innerDiv);
+			expect(result).toBe(img);
+		});
+
+		it('should return img via internal-embed.image-embed container', () => {
+			const embedBlock = document.createElement('span');
+			embedBlock.classList.add('internal-embed', 'image-embed');
+			const handle = document.createElement('div');
+			const img = document.createElement('img');
+			img.setAttribute('src', 'test.png');
+			embedBlock.appendChild(img);
+			embedBlock.appendChild(handle);
+
+			const result = (plugin as any).findImageElement(handle);
+			expect(result).toBe(img);
+		});
+
+		it('should return null when no img found at all', () => {
+			const div = document.createElement('div');
+			div.textContent = 'just text';
+
+			const result = (plugin as any).findImageElement(div);
+			expect(result).toBeNull();
+		});
+
+		it('should return first img when wrapper has multiple images', () => {
+			const wrapper = document.createElement('div');
+			const img1 = document.createElement('img');
+			img1.setAttribute('src', 'first.png');
+			const img2 = document.createElement('img');
+			img2.setAttribute('src', 'second.png');
+			wrapper.appendChild(img1);
+			wrapper.appendChild(img2);
+
+			const result = (plugin as any).findImageElement(wrapper);
+			expect(result).toBe(img1);
+		});
 	});
 
 	// ============================================

@@ -219,11 +219,34 @@ export default class SmartImageRenamer extends Plugin {
 		new OrphanedImagesModal(this.app, this.bulkRenameService, result).open();
 	}
 
+	/**
+	 * Find the <img> element from a click target.
+	 * In Obsidian 1.12+, the click target may be a resize wrapper around the image
+	 * rather than the <img> element itself.
+	 */
+	private findImageElement(target: HTMLElement): HTMLImageElement | null {
+		// 1. Target IS the <img>
+		if (target.tagName === 'IMG') return target as HTMLImageElement;
+		// 2. Target is inside an <img> (unlikely but defensive)
+		const closestImg = target.closest('img');
+		if (closestImg) return closestImg;
+		// 3. Target is a wrapper containing <img> as child
+		const childImg = target.querySelector('img');
+		if (childImg) return childImg;
+		// 4. Target is inside an embed block — find the <img> via container
+		const embedBlock = target.closest('.cm-embed-block.cm-embed-image, .internal-embed.image-embed');
+		if (embedBlock) {
+			const embeddedImg = embedBlock.querySelector('img');
+			if (embeddedImg) return embeddedImg;
+		}
+		return null;
+	}
+
 	private handleImageContextMenu(evt: MouseEvent): void {
 		const target = evt.target as HTMLElement;
-		if (target.tagName !== 'IMG') return;
+		const img = this.findImageElement(target);
+		if (!img) return;
 
-		const img = target as HTMLImageElement;
 		const src = img.getAttribute('src');
 		if (!src) return;
 
