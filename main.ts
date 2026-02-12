@@ -102,7 +102,15 @@ export default class SmartImageRenamer extends Plugin {
 			})
 		);
 
+		// Obsidian 1.12+: file-menu fires for image right-clicks instead of editor-menu
+		this.registerEvent(
+			this.app.workspace.on('file-menu', (menu, file) => {
+				this.handleFileMenu(menu, file);
+			})
+		);
+
 		// Context menu on rendered images - capture phase to run before Obsidian
+		// Sets pendingImageFile for editor-menu fallback (pre-1.12)
 		this.registerDomEvent(
 			document,
 			'contextmenu',
@@ -257,19 +265,24 @@ export default class SmartImageRenamer extends Plugin {
 		const file = this.fileService.findFileByName(fileName);
 		if (!file || !isImageFile(file.extension)) return;
 
-		const sourceNote = this.app.workspace.getActiveFile() ?? undefined;
-
 		// Store pending file for editor-menu fallback (pre-1.12 Obsidian)
 		this.pendingImageFile = file;
-		this.pendingSourceNote = sourceNote;
+		this.pendingSourceNote = this.app.workspace.getActiveFile() ?? undefined;
 		setTimeout(() => {
 			this.pendingImageFile = undefined;
 			this.pendingSourceNote = undefined;
 		}, 100);
+	}
 
-		// Obsidian 1.12+ no longer fires editor-menu for image right-clicks,
-		// so we create our own context menu directly
-		const menu = new Menu();
+	/**
+	 * Handle file-menu event (Obsidian 1.12+ fires this for image right-clicks
+	 * instead of editor-menu)
+	 */
+	private handleFileMenu(menu: Menu, file: TAbstractFile): void {
+		if (!(file instanceof TFile) || !isImageFile(file.extension)) return;
+
+		const sourceNote = this.app.workspace.getActiveFile() ?? undefined;
+
 		menu.addItem((item) => {
 			item.setTitle(t('menu.renameImage'))
 				.setIcon('pencil')
@@ -287,7 +300,6 @@ export default class SmartImageRenamer extends Plugin {
 				.setIcon('trash')
 				.onClick(() => { this.openDeleteModal(file); });
 		});
-		menu.showAtMouseEvent(evt);
 	}
 
 	private handleEditorMenu(menu: Menu, editor: Editor, info: MarkdownView | MarkdownFileInfo): void {
