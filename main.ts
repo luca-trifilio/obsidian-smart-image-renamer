@@ -234,7 +234,8 @@ export default class SmartImageRenamer extends Plugin {
 		const childImg = target.querySelector('img');
 		if (childImg) return childImg;
 		// 4. Target is inside an embed block — find the <img> via container
-		const embedBlock = target.closest('.cm-embed-block.cm-embed-image, .internal-embed.image-embed');
+		// Obsidian 1.12+ uses .internal-embed.image-embed; pre-1.12 used .cm-embed-block.cm-embed-image
+		const embedBlock = target.closest('.internal-embed.image-embed, .cm-embed-block.cm-embed-image');
 		if (embedBlock) {
 			const embeddedImg = embedBlock.querySelector('img');
 			if (embeddedImg) return embeddedImg;

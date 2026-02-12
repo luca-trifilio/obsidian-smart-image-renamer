@@ -409,18 +409,20 @@
 	margin-bottom: 1em;
 }
 
-/* Caption display in edit mode */
-/* Display image captions below embedded images in edit/live preview mode */
+/* Caption display for embedded images */
+/* Obsidian 1.12+ uses .internal-embed.image-embed for both Live Preview and Reading mode */
+/* Pre-1.12 used .cm-embed-block.cm-embed-image for Live Preview (kept for backward compat) */
 
 /* Force column layout so caption goes below image (Obsidian 1.12+ uses flex row for resize handles) */
+.internal-embed.image-embed,
 .cm-embed-block.cm-embed-image {
 	flex-direction: column;
 	align-items: center;
 }
 
 /* Only show when alt exists and is NOT a filename (doesn't end with image extension) */
-.cm-embed-block.cm-embed-image::after,
-.internal-embed.image-embed::after {
+.internal-embed.image-embed::after,
+.cm-embed-block.cm-embed-image::after {
 	content: attr(alt);
 	display: block;
 	width: 100%;
@@ -433,19 +435,6 @@
 }
 
 /* Hide caption when no alt, empty alt, or alt is a filename (ends with image extension) */
-.cm-embed-block.cm-embed-image:not([alt])::after,
-.cm-embed-block.cm-embed-image[alt=""]::after,
-.cm-embed-block.cm-embed-image[alt$=".png"]::after,
-.cm-embed-block.cm-embed-image[alt$=".jpg"]::after,
-.cm-embed-block.cm-embed-image[alt$=".jpeg"]::after,
-.cm-embed-block.cm-embed-image[alt$=".gif"]::after,
-.cm-embed-block.cm-embed-image[alt$=".webp"]::after,
-.cm-embed-block.cm-embed-image[alt$=".svg"]::after,
-.cm-embed-block.cm-embed-image[alt$=".bmp"]::after,
-.cm-embed-block.cm-embed-image[alt$=".avif"]::after,
-.cm-embed-block.cm-embed-image[alt$=".tiff"]::after,
-.cm-embed-block.cm-embed-image[alt$=".tif"]::after,
-.cm-embed-block.cm-embed-image[alt$=".ico"]::after,
 .internal-embed.image-embed:not([alt])::after,
 .internal-embed.image-embed[alt=""]::after,
 .internal-embed.image-embed[alt$=".png"]::after,
@@ -458,6 +447,19 @@
 .internal-embed.image-embed[alt$=".avif"]::after,
 .internal-embed.image-embed[alt$=".tiff"]::after,
 .internal-embed.image-embed[alt$=".tif"]::after,
-.internal-embed.image-embed[alt$=".ico"]::after {
+.internal-embed.image-embed[alt$=".ico"]::after,
+.cm-embed-block.cm-embed-image:not([alt])::after,
+.cm-embed-block.cm-embed-image[alt=""]::after,
+.cm-embed-block.cm-embed-image[alt$=".png"]::after,
+.cm-embed-block.cm-embed-image[alt$=".jpg"]::after,
+.cm-embed-block.cm-embed-image[alt$=".jpeg"]::after,
+.cm-embed-block.cm-embed-image[alt$=".gif"]::after,
+.cm-embed-block.cm-embed-image[alt$=".webp"]::after,
+.cm-embed-block.cm-embed-image[alt$=".svg"]::after,
+.cm-embed-block.cm-embed-image[alt$=".bmp"]::after,
+.cm-embed-block.cm-embed-image[alt$=".avif"]::after,
+.cm-embed-block.cm-embed-image[alt$=".tiff"]::after,
+.cm-embed-block.cm-embed-image[alt$=".tif"]::after,
+.cm-embed-block.cm-embed-image[alt$=".ico"]::after {
 	display: none;
 }
