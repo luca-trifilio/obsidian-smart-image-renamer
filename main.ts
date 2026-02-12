@@ -257,14 +257,37 @@ export default class SmartImageRenamer extends Plugin {
 		const file = this.fileService.findFileByName(fileName);
 		if (!file || !isImageFile(file.extension)) return;
 
-		this.pendingImageFile = file;
-		this.pendingSourceNote = this.app.workspace.getActiveFile() ?? undefined;
+		const sourceNote = this.app.workspace.getActiveFile() ?? undefined;
 
-		// Clear pending file after a tiny delay
+		// Store pending file for editor-menu fallback (pre-1.12 Obsidian)
+		this.pendingImageFile = file;
+		this.pendingSourceNote = sourceNote;
 		setTimeout(() => {
 			this.pendingImageFile = undefined;
 			this.pendingSourceNote = undefined;
 		}, 100);
+
+		// Obsidian 1.12+ no longer fires editor-menu for image right-clicks,
+		// so we create our own context menu directly
+		const menu = new Menu();
+		menu.addItem((item) => {
+			item.setTitle(t('menu.renameImage'))
+				.setIcon('pencil')
+				.onClick(() => this.openRenameModal(file));
+		});
+		if (sourceNote) {
+			menu.addItem((item) => {
+				item.setTitle(t('menu.editCaption'))
+					.setIcon('text-cursor-input')
+					.onClick(() => { void this.openCaptionModal(file, sourceNote); });
+			});
+		}
+		menu.addItem((item) => {
+			item.setTitle(t('menu.deleteImage'))
+				.setIcon('trash')
+				.onClick(() => { this.openDeleteModal(file); });
+		});
+		menu.showAtMouseEvent(evt);
 	}
 
 	private handleEditorMenu(menu: Menu, editor: Editor, info: MarkdownView | MarkdownFileInfo): void {

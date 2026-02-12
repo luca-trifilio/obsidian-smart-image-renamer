@@ -352,6 +352,10 @@ export class Menu {
 	_clear(): void {
 		this.items = [];
 	}
+
+	showAtMouseEvent(_evt: MouseEvent): void {
+		// no-op in tests
+	}
 }
 
 // Mock MenuItem
