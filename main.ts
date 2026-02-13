@@ -282,21 +282,14 @@ export default class SmartImageRenamer extends Plugin {
 		if (!(file instanceof TFile) || !isImageFile(file.extension)) return;
 
 		const sourceNote = this.app.workspace.getActiveFile() ?? undefined;
+		if (!sourceNote) return;
 
 		menu.addItem((item) => {
-			item.setTitle(t('menu.renameImage'))
-				.setIcon('pencil')
-				.setSection('smart-renamer')
-				.onClick(() => this.openRenameModal(file));
+			item.setTitle(t('menu.editCaption'))
+				.setIcon('text-cursor-input')
+				.setSection('action')
+				.onClick(() => { void this.openCaptionModal(file, sourceNote); });
 		});
-		if (sourceNote) {
-			menu.addItem((item) => {
-				item.setTitle(t('menu.editCaption'))
-					.setIcon('text-cursor-input')
-					.setSection('smart-renamer')
-					.onClick(() => { void this.openCaptionModal(file, sourceNote); });
-			});
-		}
 	}
 
 	private handleEditorMenu(menu: Menu, editor: Editor, info: MarkdownView | MarkdownFileInfo): void {
