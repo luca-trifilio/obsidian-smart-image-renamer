@@ -374,6 +374,10 @@ export class MenuItem {
 		return this;
 	}
 
+	setSection(_section: string): this {
+		return this;
+	}
+
 	onClick(callback: () => void): this {
 		this._callback = callback;
 		return this;
