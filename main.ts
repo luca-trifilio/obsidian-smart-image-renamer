@@ -102,7 +102,15 @@ export default class SmartImageRenamer extends Plugin {
 			})
 		);
 
+		// Obsidian 1.12+: file-menu fires for image right-clicks instead of editor-menu
+		this.registerEvent(
+			this.app.workspace.on('file-menu', (menu, file) => {
+				this.handleFileMenu(menu, file);
+			})
+		);
+
 		// Context menu on rendered images - capture phase to run before Obsidian
+		// Sets pendingImageFile for editor-menu fallback (pre-1.12)
 		this.registerDomEvent(
 			document,
 			'contextmenu',
@@ -219,11 +227,35 @@ export default class SmartImageRenamer extends Plugin {
 		new OrphanedImagesModal(this.app, this.bulkRenameService, result).open();
 	}
 
+	/**
+	 * Find the <img> element from a click target.
+	 * In Obsidian 1.12+, the click target may be a resize wrapper around the image
+	 * rather than the <img> element itself.
+	 */
+	private findImageElement(target: HTMLElement): HTMLImageElement | null {
+		// 1. Target IS the <img>
+		if (target.tagName === 'IMG') return target as HTMLImageElement;
+		// 2. Target is inside an <img> (unlikely but defensive)
+		const closestImg = target.closest('img');
+		if (closestImg) return closestImg;
+		// 3. Target is a wrapper containing <img> as child
+		const childImg = target.querySelector('img');
+		if (childImg) return childImg;
+		// 4. Target is inside an embed block — find the <img> via container
+		// Obsidian 1.12+ uses .internal-embed.image-embed; pre-1.12 used .cm-embed-block.cm-embed-image
+		const embedBlock = target.closest('.internal-embed.image-embed, .cm-embed-block.cm-embed-image');
+		if (embedBlock) {
+			const embeddedImg = embedBlock.querySelector('img');
+			if (embeddedImg) return embeddedImg;
+		}
+		return null;
+	}
+
 	private handleImageContextMenu(evt: MouseEvent): void {
 		const target = evt.target as HTMLElement;
-		if (target.tagName !== 'IMG') return;
+		const img = this.findImageElement(target);
+		if (!img) return;
 
-		const img = target as HTMLImageElement;
 		const src = img.getAttribute('src');
 		if (!src) return;
 
@@ -233,14 +265,31 @@ export default class SmartImageRenamer extends Plugin {
 		const file = this.fileService.findFileByName(fileName);
 		if (!file || !isImageFile(file.extension)) return;
 
+		// Store pending file for editor-menu fallback (pre-1.12 Obsidian)
 		this.pendingImageFile = file;
 		this.pendingSourceNote = this.app.workspace.getActiveFile() ?? undefined;
-
-		// Clear pending file after a tiny delay
 		setTimeout(() => {
 			this.pendingImageFile = undefined;
 			this.pendingSourceNote = undefined;
 		}, 100);
+	}
+
+	/**
+	 * Handle file-menu event (Obsidian 1.12+ fires this for image right-clicks
+	 * instead of editor-menu)
+	 */
+	private handleFileMenu(menu: Menu, file: TAbstractFile): void {
+		if (!(file instanceof TFile) || !isImageFile(file.extension)) return;
+
+		const sourceNote = this.app.workspace.getActiveFile() ?? undefined;
+		if (!sourceNote) return;
+
+		menu.addItem((item) => {
+			item.setTitle(t('menu.editCaption'))
+				.setIcon('text-cursor-input')
+				.setSection('action')
+				.onClick(() => { void this.openCaptionModal(file, sourceNote); });
+		});
 	}
 
 	private handleEditorMenu(menu: Menu, editor: Editor, info: MarkdownView | MarkdownFileInfo): void {

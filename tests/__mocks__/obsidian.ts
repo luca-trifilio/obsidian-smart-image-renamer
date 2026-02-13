@@ -352,6 +352,10 @@ export class Menu {
 	_clear(): void {
 		this.items = [];
 	}
+
+	showAtMouseEvent(_evt: MouseEvent): void {
+		// no-op in tests
+	}
 }
 
 // Mock MenuItem
@@ -367,6 +371,10 @@ export class MenuItem {
 
 	setIcon(icon: string): this {
 		this._icon = icon;
+		return this;
+	}
+
+	setSection(_section: string): this {
 		return this;
 	}
 
