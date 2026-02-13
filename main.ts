@@ -286,23 +286,17 @@ export default class SmartImageRenamer extends Plugin {
 		menu.addItem((item) => {
 			item.setTitle(t('menu.renameImage'))
 				.setIcon('pencil')
-				.setSection('action')
+				.setSection('smart-renamer')
 				.onClick(() => this.openRenameModal(file));
 		});
 		if (sourceNote) {
 			menu.addItem((item) => {
 				item.setTitle(t('menu.editCaption'))
 					.setIcon('text-cursor-input')
-					.setSection('action')
+					.setSection('smart-renamer')
 					.onClick(() => { void this.openCaptionModal(file, sourceNote); });
 			});
 		}
-		menu.addItem((item) => {
-			item.setTitle(t('menu.deleteImage'))
-				.setIcon('trash')
-				.setSection('danger')
-				.onClick(() => { this.openDeleteModal(file); });
-		});
 	}
 
 	private handleEditorMenu(menu: Menu, editor: Editor, info: MarkdownView | MarkdownFileInfo): void {
